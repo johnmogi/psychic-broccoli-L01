@@ -11,13 +11,15 @@
     "l02": "tsx src/cli.ts l02",
     "l02:batch": "tsx src/cli.ts l02 batch",
     "l02:compare": "tsx src/cli.ts l02 compare",
+    "z01": "vite --config admin/vite.config.ts",
     "test": "vitest run",
-    "check": "tsc --noEmit && vitest run"
+    "check": "tsc --noEmit && tsc --noEmit -p admin && vitest run"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
     "tsx": "^4.23.15",
     "typescript": "^5.9.2",
+    "vite": "^7.3.6",
     "vitest": "^3.2.4"
   }
 }

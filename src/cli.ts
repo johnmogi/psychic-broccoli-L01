@@ -1,22 +1,23 @@
 import { resolveConfig, type AlignmentRule, type L01Config, type MaxJump } from "./config.js";
-import { compareConfigs, formatCompare } from "./compare.js";
+import { compareConfigs, formatCompare, formatTune, tuneConfigs } from "./compare.js";
 import { formatLog } from "./events.js";
 import { playGame } from "./engine.js";
 import { formatBatch, formatMetrics, metricsFromEvents } from "./metrics.js";
 import { runBatch } from "./compare.js";
 import { seedList } from "./rng.js";
+import { GOLDEN_SEED, playGoldenTutorial } from "./tutorial.js";
 
 export function main(argv: readonly string[]): string {
   const { command, options } = parseArgs(argv);
   if (command === "batch") return formatBatch(runBatch(batchRequest(options)));
   if (command === "compare") return formatCompare(compareConfigs(compareRequest(options)).rows);
+  if (command === "tune") return formatTune(tuneConfigs(tuneRequest(options)).rows);
   if (command === "run") {
-    const config = sharedConfig(options);
     const seed = required(options, "seed");
-    const state = playGame(seed, config);
+    const state = seed === GOLDEN_SEED ? playGoldenTutorial() : playGame(seed, sharedConfig(options));
     return `${formatLog(state.events)}\n\n${formatMetrics(metricsFromEvents(state.events))}`;
   }
-  throw new Error(`Unknown command ${command}. Use run, batch, or compare.`);
+  throw new Error(`Unknown command ${command}. Use run, batch, compare, or tune.`);
 }
 
 function batchRequest(options: Record<string, string>) {
@@ -33,6 +34,19 @@ function compareRequest(options: Record<string, string>) {
     seedStart: integer(required(options, "seed-start"), "seed-start"),
     turnCount: config.turnCount,
     maxEvolutionsPerTurn: config.maxEvolutionsPerTurn,
+  };
+}
+
+function tuneRequest(options: Record<string, string>) {
+  const turns = required(options, "turns")
+    .split(",")
+    .map((value) => integer(value.trim(), "turns"));
+  if (!turns.length) throw new Error("--turns must list at least one length");
+  return {
+    runs: integer(required(options, "runs"), "runs"),
+    seedStart: integer(required(options, "seed-start"), "seed-start"),
+    turnCounts: turns,
+    maxEvolutionsPerTurn: options["max-evolutions-per-turn"] ? evolutions(options["max-evolutions-per-turn"]) : resolveConfig().maxEvolutionsPerTurn,
   };
 }
 

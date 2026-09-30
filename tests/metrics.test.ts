@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { playGame } from "../src/engine.js";
+import { runBatch } from "../src/compare.js";
 import { metricsFromEvents } from "../src/metrics.js";
 
 describe("metrics", () => {
@@ -23,5 +24,16 @@ describe("metrics", () => {
     expect(metrics.completedTurns).toBe(9);
     expect(metrics.reachedRank6["P1"]).toBe(metrics.finalTopRank["P1"] === 6);
     expect(metrics.finalTopRank["P1"]).toBe(state.players[0].lineage.at(-1)?.rank);
+  });
+
+  it("counts ending ranks per player and overall", () => {
+    const stats = runBatch({ seeds: ["1", "2"], config: { turnCount: 4 } });
+    for (const rates of [stats.rankDistribution.P1, stats.rankDistribution.P2, stats.rankDistribution.overall]) {
+      const total = Object.values(rates).reduce((sum, rate) => sum + rate, 0);
+      expect(total).toBeCloseTo(1);
+    }
+    const metrics = ["1", "2"].map((seed) => metricsFromEvents(playGame(seed, { turnCount: 4 }).events));
+    const p1At = (rank: number) => metrics.filter((row) => row.finalTopRank["P1"] === rank).length / metrics.length;
+    expect(stats.rankDistribution.P1[6]).toBe(p1At(6));
   });
 });

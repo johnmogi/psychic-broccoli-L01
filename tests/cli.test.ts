@@ -27,4 +27,22 @@ describe("cli", () => {
     expect(output).toContain("sameElement/+2");
     expect(output).toContain("sameElement/+1");
   });
+
+  it("runs the golden tutorial seed", () => {
+    const output = main(["--seed", "tutorial"]);
+    expect(output).toContain("SEED tutorial");
+    expect(output).toContain("EVOLVE encounter A FIRE -> 3 AIR");
+    expect(output).toContain("P1 top 6 rank6 true");
+    expect(output).toContain("P2 top 6 rank6 true");
+  });
+
+  it("tunes the four configs across turn lengths", () => {
+    const output = main(["tune", "--runs", "2", "--seed-start", "1", "--turns", "4,6"]);
+    expect(output).toContain("TUNE");
+    expect(output).toContain("RANK DISTRIBUTION");
+    expect(output).toContain("sameColor/+2");
+    expect(output).toContain("turns 4");
+    expect(output).toContain("turns 6");
+    expect(output).toContain("all ");
+  });
 });

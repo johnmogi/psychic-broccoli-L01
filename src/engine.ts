@@ -9,11 +9,15 @@ import { topCard, type GameState, type PlayerState } from "./state.js";
 export function playGame(seed: string, partial: Partial<L01Config> = {}): GameState {
   const config = resolveConfig(partial);
   if (!Number.isInteger(config.turnCount) || config.turnCount < 1) throw new Error("turnCount must be an integer of at least 1");
-  let state = setup(seed, config);
-  while (state.completedTurns < config.turnCount) state = resolveTurn(state);
-  state.status = "completed";
-  state.events.push({ type: "COMPLETE", completedTurns: state.completedTurns });
-  return state;
+  return completeRun(setup(seed, config));
+}
+
+export function completeRun(state: GameState): GameState {
+  let current = state;
+  while (current.completedTurns < current.config.turnCount) current = resolveTurn(current);
+  current.status = "completed";
+  current.events.push({ type: "COMPLETE", completedTurns: current.completedTurns });
+  return current;
 }
 
 export function resolveTurn(state: GameState): GameState {

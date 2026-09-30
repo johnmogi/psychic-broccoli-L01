@@ -17,6 +17,16 @@ export interface SingleRunMetrics {
   finalDeckCount: number;
 }
 
+export const LADDER_RANKS = [1, 2, 3, 4, 5, 6] as const;
+export type LadderRank = (typeof LADDER_RANKS)[number];
+export type RankRates = Record<LadderRank, number>;
+
+export interface RankDistribution {
+  P1: RankRates;
+  P2: RankRates;
+  overall: RankRates;
+}
+
 export interface BatchStats {
   runs: number;
   turnCount: number;
@@ -31,6 +41,7 @@ export interface BatchStats {
   averageAltarSends: number;
   averageOverflows: number;
   averageVeil: number;
+  rankDistribution: RankDistribution;
 }
 
 export function metricsFromEvents(events: readonly GameEvent[]): SingleRunMetrics {
@@ -110,7 +121,32 @@ export function aggregate(runs: readonly SingleRunMetrics[]): BatchStats {
     averageAltarSends: mean((metrics) => metrics.unusedEncountersToAltar),
     averageOverflows: mean((metrics) => metrics.altarOverflows),
     averageVeil: mean((metrics) => metrics.veilCount),
+    rankDistribution: {
+      P1: rankRates(runs.map((metrics) => metrics.finalTopRank["P1"] ?? 0)),
+      P2: rankRates(runs.map((metrics) => metrics.finalTopRank["P2"] ?? 0)),
+      overall: rankRates(runs.flatMap((metrics) => [metrics.finalTopRank["P1"] ?? 0, metrics.finalTopRank["P2"] ?? 0])),
+    },
   };
+}
+
+function rankRates(ranks: readonly number[]): RankRates {
+  const rates = {} as RankRates;
+  for (const rank of LADDER_RANKS) {
+    rates[rank] = ranks.length ? ranks.filter((value) => value === rank).length / ranks.length : 0;
+  }
+  return rates;
+}
+
+export function formatRankDistribution(distribution: RankDistribution): string {
+  return [
+    `P1  ${formatRates(distribution.P1)}`,
+    `P2  ${formatRates(distribution.P2)}`,
+    `all ${formatRates(distribution.overall)}`,
+  ].join("\n");
+}
+
+function formatRates(rates: RankRates): string {
+  return LADDER_RANKS.map((rank) => `${rank === 1 ? "A" : rank} ${percent(rates[rank])}`).join("  ");
 }
 
 export function formatMetrics(metrics: SingleRunMetrics): string {
@@ -146,6 +182,8 @@ export function formatBatch(stats: BatchStats): string {
     `average altar sends ${stats.averageAltarSends.toFixed(2)}`,
     `average altar overflow ${stats.averageOverflows.toFixed(2)}`,
     `average veil ${stats.averageVeil.toFixed(2)}`,
+    "rank distribution",
+    formatRankDistribution(stats.rankDistribution),
   ].join("\n");
 }
 

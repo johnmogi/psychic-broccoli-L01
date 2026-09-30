@@ -1,6 +1,6 @@
 import { COMPARE_PRESETS, resolveConfig, type L01Config } from "./config.js";
 import { playGame } from "./engine.js";
-import { aggregate, formatBatch, percent, type BatchStats } from "./metrics.js";
+import { aggregate, formatBatch, formatRankDistribution, percent, type BatchStats } from "./metrics.js";
 import { metricsFromEvents } from "./metrics.js";
 import { seedList } from "./rng.js";
 
@@ -34,22 +34,57 @@ export interface CompareRow extends BatchStats {
 
 export function compareConfigs(request: CompareRequest): { seeds: string[]; rows: CompareRow[] } {
   const seeds = seedList(request.seedStart, request.runs);
-  const rows = COMPARE_PRESETS.map((preset) => {
-    const stats = runBatch({
-      seeds,
-      config: {
-        turnCount: request.turnCount,
-        alignmentRule: preset.alignmentRule,
-        maxJump: preset.maxJump,
-        maxEvolutionsPerTurn: request.maxEvolutionsPerTurn,
-      },
-    });
-    return { name: preset.name, ...stats };
-  });
-  return { seeds, rows };
+  return { seeds, rows: rowsForTurns(seeds, [request.turnCount], request.maxEvolutionsPerTurn) };
+}
+
+export interface TuneRequest {
+  runs: number;
+  seedStart: number;
+  turnCounts: readonly number[];
+  maxEvolutionsPerTurn: L01Config["maxEvolutionsPerTurn"];
+}
+
+export function tuneConfigs(request: TuneRequest): { seeds: string[]; rows: CompareRow[] } {
+  if (!request.turnCounts.length) throw new Error("tune requires at least one turn count");
+  const seeds = seedList(request.seedStart, request.runs);
+  return { seeds, rows: rowsForTurns(seeds, request.turnCounts, request.maxEvolutionsPerTurn) };
+}
+
+function rowsForTurns(
+  seeds: readonly string[],
+  turnCounts: readonly number[],
+  maxEvolutionsPerTurn: L01Config["maxEvolutionsPerTurn"],
+): CompareRow[] {
+  const rows: CompareRow[] = [];
+  for (const turnCount of turnCounts) {
+    for (const preset of COMPARE_PRESETS) {
+      const stats = runBatch({
+        seeds,
+        config: {
+          turnCount,
+          alignmentRule: preset.alignmentRule,
+          maxJump: preset.maxJump,
+          maxEvolutionsPerTurn,
+        },
+      });
+      rows.push({ name: preset.name, ...stats });
+    }
+  }
+  return rows;
 }
 
 export function formatCompare(rows: readonly CompareRow[]): string {
+  return formatTable("COMPARE", rows);
+}
+
+export function formatTune(rows: readonly CompareRow[]): string {
+  const blocks = rows.map((row) =>
+    [`${row.name} turns ${row.turnCount}`, formatRankDistribution(row.rankDistribution)].join("\n"),
+  );
+  return `${formatTable("TUNE", rows)}\n\nRANK DISTRIBUTION\n${blocks.join("\n")}`;
+}
+
+function formatTable(title: string, rows: readonly CompareRow[]): string {
   const header = [
     "config".padEnd(16),
     "runs".padStart(6),
@@ -76,7 +111,7 @@ export function formatCompare(rows: readonly CompareRow[]): string {
       row.averageVeil.toFixed(2).padStart(8),
     ].join(" "),
   );
-  return ["COMPARE", header, ...body].join("\n");
+  return [title, header, ...body].join("\n");
 }
 
 export { formatBatch };

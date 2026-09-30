@@ -8,6 +8,8 @@ The layout is a list of zones and a list of settings. Z02, Z03, and Z04 can add 
 
 Timeline replay steps through one engine snapshot per event. Start shows the setup board. End shows the finished board. The selected event highlights the cards and zones named in its payload, marks that row in the terminal, and fills the “What changed” line from the same event. Click a terminal row to jump there. This is God-mode inspection for turn flow and later tutorial or player-view planning. It is not a player UI. Metrics stay the finished run and light up on the COMPLETE event, because those stats are defined on a completed log.
 
+The shell opens on Z02 / L02. From the page you can replay one run, copy the terminal text or the event JSON, run a Z02 batch, and run the four-way compare. The `nexus>` line accepts `help`, `run`, `batch`, `compare`, `copy logs`, `copy events`, and `clear`. Those words only call the same actions as the buttons.
+
 ```bash
 npm run z01
 ```

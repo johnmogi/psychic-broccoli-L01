@@ -124,3 +124,21 @@ Each turn fills empty slots, collects the leftmost table card, evolves from the 
 ## Development boundaries
 
 L01 is frozen as the card-state grammar. L02 is the layer later play starts from. Eclipse, dice, barriers, combat, health, and majors in play are not part of L02, and they must not be backfilled into L01 unless they are deliberately versioned.
+
+## Admin shell
+
+The admin UI is a God-mode shell for replay and a Z02 stats lab. It does not own rules.
+
+```bash
+npm run z01
+```
+
+From the page:
+
+- replay one L01 or L02 run
+- copy the terminal scrollback or the structured events JSON
+- run a Z02 batch
+- run the four-way compare on one seed list
+- type `help`, `run`, `batch`, `compare`, `copy logs`, `copy events`, or `clear` at the `nexus>` prompt
+
+Those commands only call the same actions as the buttons.

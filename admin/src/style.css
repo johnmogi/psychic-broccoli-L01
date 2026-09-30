@@ -47,6 +47,7 @@ button, input, select {
   padding: 1.25rem 1rem 1.5rem;
   border-right: 1px solid var(--line);
   background: rgba(12, 10, 8, 0.72);
+  overflow: auto;
 }
 
 .stage {
@@ -381,13 +382,42 @@ h2, h3 {
 .scrollback li[data-selected="true"] { background: rgba(224, 122, 61, 0.2); }
 
 .term-index, .term-kind { color: #6f8f64; }
+.terminal-actions { display: flex; gap: 0.35rem; }
+.terminal-actions button, .stats-actions button {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  padding: 0.25rem 0.4rem;
+  cursor: pointer;
+}
+.stats-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.6rem; }
+.stats-lab { margin-top: 1rem; }
+.stats-results dl { margin: 0.45rem 0 0; }
+.stats-results h3 { margin: 0.4rem 0; font-size: 0.95rem; }
 .terminal-prompt {
   display: flex;
   gap: 0.6rem;
   margin-top: 0.35rem;
   color: var(--phosphor);
   font-size: 0.75rem;
+  align-items: center;
 }
+.terminal-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(183, 227, 161, 0.35);
+  padding: 0.15rem 0.2rem;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--phosphor);
+}
+.scrollback li[data-channel="stats"] .term-kind { color: var(--ember); }
+.scrollback li[data-channel="system"] .term-text { color: #e7d7b8; }
+.scrollback li:not([tabindex]) { cursor: default; }
 
 .terminal-hold { color: #6f8f64; }
 

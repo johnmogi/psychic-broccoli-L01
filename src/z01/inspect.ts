@@ -6,8 +6,8 @@ import { l02MetricsFromEvents } from "../l02/metrics.js";
 import type { BoardSnap } from "./capture.js";
 import type { Highlight } from "./timeline.js";
 
-/** Where a console line can be rendered later. The first shell only emits "admin". */
-export type ConsoleChannel = "admin" | "advice" | "story";
+/** Where a console line can be rendered later: admin log, stats, system, advice, or story. */
+export type ConsoleChannel = "admin" | "stats" | "system" | "advice" | "story";
 
 export interface CardFace {
   id: string;
@@ -47,6 +47,7 @@ export interface ConsoleEntry {
   eventType: string;
   text: string;
   event: unknown;
+  selectable: boolean;
 }
 
 export interface MetricItem {
@@ -156,6 +157,7 @@ export function consoleFrom(events: readonly { type: string }[]): ConsoleEntry[]
     eventType: event.type,
     text: summarize(event as { type: string } & Record<string, unknown>),
     event,
+    selectable: true,
   }));
 }
 

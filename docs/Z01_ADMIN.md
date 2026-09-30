@@ -4,7 +4,7 @@ Z01 is an inspection and control shell over the L01 and L02 engines. It does not
 
 Later play still starts from L02. L01 remains the frozen grammar and is only available here as a lab view.
 
-The layout is a list of zones and a list of settings. Z02, Z03, and Z04 can add zones or settings without a new page structure. The bottom pane is an event scrollback with a channel on every line (`admin`, `stats`, `system`, later `advice` or `story`). The `nexus>` line only forwards a short command list to the same actions as the buttons.
+The shell has three workspaces: Board, Lab, and Terminal. Board is one run: timeline, zones, players, and metrics. Lab is the wide stats surface for a Z02 batch or four-way compare, with diagnostics first, rank bars, pressure rows, and a compare table. Terminal is the event scrollback. Each line has a channel (`admin`, `stats`, `system`, later `advice` or `story`). The `nexus>` line only forwards a short command list to the same actions as the buttons. `batch` and `compare` update the Lab view and print a summary in the terminal.
 
 Timeline replay steps through one engine snapshot per event. Start shows the setup board. End shows the finished board. The selected event highlights the cards and zones named in its payload, marks that row in the terminal, and fills the “What changed” line from the same event. Click a terminal row to jump there. This is God-mode inspection for turn flow and later tutorial or player-view planning. It is not a player UI. Metrics stay the finished run and light up on the COMPLETE event, because those stats are defined on a completed log.
 

@@ -1,4 +1,5 @@
 import type { LabSettings } from "../../../src/z01/lab.js";
+import type { LabPresentation } from "../../../src/z01/present.js";
 
 export function StatsPanel(
   onBatch: (settings: LabSettings) => void,
@@ -36,12 +37,13 @@ export function StatsPanel(
   actions.className = "stats-actions";
   actions.append(batch, compare);
 
-  const results = document.createElement("div");
-  results.className = "stats-results";
-  results.dataset.role = "lab-results";
-  const diagnostics = document.createElement("div");
-  diagnostics.className = "diagnostics";
-  diagnostics.dataset.role = "lab-diagnostics";
+  const board = document.createElement("div");
+  board.className = "lab-board";
+  board.dataset.role = "lab-board";
+  const empty = document.createElement("p");
+  empty.className = "zone-hint";
+  empty.textContent = "Run a batch or a four-way compare. Diagnostics, rank bars, and the compare table land here.";
+  board.append(empty);
 
   batch.addEventListener("click", () => onBatch(readLab(form)));
   compare.addEventListener("click", () => {
@@ -49,84 +51,150 @@ export function StatsPanel(
     onCompare({ runs: settings.runs, seedStart: settings.seedStart, turns: settings.turns });
   });
 
-  el.append(head, note, form, actions, results, diagnostics);
+  el.append(head, note, form, actions, board);
   return el;
 }
 
-export function fillLabResults(root: ParentNode, title: string, rows: { label: string; value: string }[][]): void {
-  const host = root.querySelector<HTMLElement>("[data-role='lab-results']");
+export function renderLab(root: ParentNode, model: LabPresentation): void {
+  const host = root.querySelector<HTMLElement>("[data-role='lab-board']");
   if (!host) return;
   host.replaceChildren();
+  if (model.findings.length) host.append(findingList(model.findings));
+  if (model.meters.length) host.append(meterGrid("Summary", model.meters));
+  if (model.ranks.length) host.append(rankSection(model.ranks));
+  if (model.pressure.length) host.append(pressureSection(model.pressure));
+  if (model.compare.length) host.append(compareTable(model.compare));
+  if (model.slots.length) host.append(meterGrid("Open slots", model.slots));
+}
+
+function findingList(lines: LabPresentation["findings"]): HTMLElement {
+  const section = document.createElement("section");
+  section.className = "lab-findings";
   const heading = document.createElement("h3");
-  heading.textContent = title;
-  host.append(heading);
-  for (const group of rows) {
-    const list = document.createElement("dl");
-    for (const row of group) {
-      const label = document.createElement("dt");
-      label.textContent = row.label;
-      const value = document.createElement("dd");
-      value.textContent = row.value;
-      const line = document.createElement("div");
-      line.append(label, value);
-      list.append(line);
-    }
-    host.append(list);
-  }
-}
-
-export function fillDiagnostics(
-  root: ParentNode,
-  model: {
-    chips: { status: "healthy" | "watch" | "problem"; text: string }[];
-    lines: string[];
-    extremes: { label: string; best: string; worst: string }[];
-    problems: string[];
-  },
-): void {
-  const host = root.querySelector<HTMLElement>("[data-role='lab-diagnostics']");
-  if (!host) return;
-  host.replaceChildren();
-  if (model.chips.length) {
-    const list = document.createElement("ul");
-    list.className = "diag-list";
-    for (const chip of model.chips) {
-      const item = document.createElement("li");
-      item.className = `diag-chip is-${chip.status}`;
-      item.textContent = chip.text;
-      list.append(item);
-    }
-    host.append(list);
-  }
-  if (model.lines.length) host.append(lineList(model.lines));
-  if (model.extremes.length) {
-    const heading = document.createElement("h3");
-    heading.textContent = "Best / worst";
-    const list = document.createElement("ul");
-    list.className = "diag-lines";
-    for (const item of model.extremes) {
-      const line = document.createElement("li");
-      line.textContent = `${item.label}: best ${item.best}, worst ${item.worst}`;
-      list.append(line);
-    }
-    host.append(heading, list);
-  }
-  if (model.problems.length) {
-    const heading = document.createElement("h3");
-    heading.textContent = "Problem configs";
-    host.append(heading, lineList(model.problems, "is-problem"));
-  }
-}
-
-function lineList(lines: string[], extra = ""): HTMLUListElement {
+  heading.textContent = "Diagnostics";
   const list = document.createElement("ul");
-  list.className = extra ? `diag-lines ${extra}` : "diag-lines";
   for (const line of lines) {
     const item = document.createElement("li");
-    item.textContent = line;
+    item.className = `diag-line is-${line.status}`;
+    item.textContent = line.text;
     list.append(item);
   }
-  return list;
+  section.append(heading, list);
+  return section;
+}
+
+function meterGrid(title: string, meters: LabPresentation["meters"]): HTMLElement {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  const grid = document.createElement("div");
+  grid.className = "lab-meters";
+  for (const meter of meters) {
+    const card = document.createElement("div");
+    card.className = "lab-meter";
+    const label = document.createElement("span");
+    label.textContent = meter.label;
+    const value = document.createElement("strong");
+    value.textContent = meter.value;
+    card.append(label, value);
+    if (meter.fraction !== null) card.append(bar(meter.fraction));
+    grid.append(card);
+  }
+  section.append(heading, grid);
+  return section;
+}
+
+function rankSection(charts: LabPresentation["ranks"]): HTMLElement {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  heading.textContent = "Rank distribution";
+  const grid = document.createElement("div");
+  grid.className = "rank-charts";
+  for (const chart of charts) {
+    const block = document.createElement("div");
+    const title = document.createElement("h4");
+    title.textContent = chart.seat;
+    block.append(title);
+    for (const rank of chart.bars) {
+      const row = document.createElement("div");
+      row.className = "rank-row";
+      const label = document.createElement("span");
+      label.textContent = rank.label;
+      const value = document.createElement("span");
+      value.textContent = rank.value;
+      row.append(label, bar(rank.fraction), value);
+      block.append(row);
+    }
+    grid.append(block);
+  }
+  section.append(heading, grid);
+  return section;
+}
+
+function pressureSection(rows: LabPresentation["pressure"]): HTMLElement {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  heading.textContent = "Pressure";
+  const list = document.createElement("div");
+  list.className = "pressure-rows";
+  for (const row of rows) {
+    const line = document.createElement("div");
+    const label = document.createElement("span");
+    label.textContent = row.label;
+    const value = document.createElement("strong");
+    value.textContent = row.value;
+    line.append(label, value);
+    list.append(line);
+  }
+  section.append(heading, list);
+  return section;
+}
+
+function compareTable(rows: LabPresentation["compare"]): HTMLElement {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  heading.textContent = "Four-way compare";
+  const table = document.createElement("table");
+  table.className = "lab-table";
+  const head = document.createElement("tr");
+  const headers = ["Config", ...(rows[0]?.cells.map((cell) => cell.label) ?? []), "Status"];
+  for (const label of headers) {
+    const cell = document.createElement("th");
+    cell.textContent = label;
+    head.append(cell);
+  }
+  table.append(head);
+  for (const row of rows) {
+    const line = document.createElement("tr");
+    if (row.best) line.dataset.best = "true";
+    if (row.problem) line.dataset.problem = "true";
+    const name = document.createElement("td");
+    name.textContent = row.best ? `${row.name} · best` : row.name;
+    line.append(name);
+    for (const cell of row.cells) {
+      const item = document.createElement("td");
+      item.textContent = cell.value;
+      if (cell.fraction !== null) item.append(bar(cell.fraction));
+      line.append(item);
+    }
+    const status = document.createElement("td");
+    status.className = `is-${row.status}`;
+    status.textContent = row.status;
+    line.append(status);
+    table.append(line);
+  }
+  section.append(heading, table);
+  return section;
+}
+
+function bar(fraction: number): HTMLElement {
+  const track = document.createElement("span");
+  track.className = "lab-bar";
+  const fill = document.createElement("span");
+  const clamped = Math.max(0, Math.min(1, fraction));
+  fill.style.width = `${(clamped * 100).toFixed(1)}%`;
+  track.append(fill);
+  return track;
 }
 
 function readLab(form: HTMLFormElement): LabSettings {

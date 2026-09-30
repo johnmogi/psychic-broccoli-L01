@@ -140,6 +140,7 @@ From the page:
 - run a Z02 batch
 - run the four-way compare on one seed list
 - read healthy / watch / problem diagnostics for that batch or compare
+- open Board, Lab, or Terminal; Lab shows diagnostics, rank bars, and the compare table
 - type `help`, `run`, `batch`, `compare`, `copy logs`, `copy events`, or `clear` at the `nexus>` prompt
 
 Those commands only call the same actions as the buttons.

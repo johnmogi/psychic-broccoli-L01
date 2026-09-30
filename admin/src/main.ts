@@ -9,12 +9,13 @@ import { buildTimeline, moveTimeline, type Timeline } from "../../src/z01/timeli
 import { routeCommand, scrollbackText } from "../../src/z01/commands.js";
 import { compareSpread, diagnose, diagnosticSummary, signalsFromL02 } from "../../src/z01/diagnostics.js";
 import { batchRows, labBatch, labCompare, type LabSettings } from "../../src/z01/lab.js";
+import { presentBatch, presentCompare } from "../../src/z01/present.js";
 import { DEFAULT_LAYER, LAYER_COPY, roundTableHint } from "../../src/z01/layers.js";
 import { EventConsole } from "./views/console.js";
 import { MetricsPanel } from "./views/metrics.js";
 import { PlayerPanel } from "./views/player.js";
 import { SettingsPanel } from "./views/settings.js";
-import { fillDiagnostics, fillLabResults, StatsPanel } from "./views/stats.js";
+import { renderLab, StatsPanel } from "./views/stats.js";
 import { TimelineBar } from "./views/timeline.js";
 import { ZoneView } from "./views/zone.js";
 
@@ -25,6 +26,20 @@ let layer: "L01" | "L02" = DEFAULT_LAYER;
 
 const shell = document.createElement("div");
 shell.className = "shell";
+shell.dataset.workspace = "board";
+const tabs = document.createElement("nav");
+tabs.className = "workspace-tabs";
+const workspaceStatus = document.createElement("p");
+workspaceStatus.className = "workspace-status";
+for (const name of ["board", "lab", "terminal"] as const) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.workspace = name;
+  button.textContent = name === "board" ? "Board" : name === "lab" ? "Lab" : "Terminal";
+  button.addEventListener("click", () => setWorkspace(name));
+  tabs.append(button);
+}
+tabs.append(workspaceStatus);
 const rail = document.createElement("aside");
 rail.className = "rail";
 const stage = document.createElement("main");
@@ -34,9 +49,11 @@ timelineHost.className = "timeline-sticky";
 const boardHost = document.createElement("div");
 boardHost.className = "board-scroll";
 stage.append(timelineHost, boardHost);
+const labView = document.createElement("section");
+labView.className = "lab-view";
 const dock = document.createElement("footer");
 dock.className = "dock";
-shell.append(rail, stage, dock);
+shell.append(tabs, rail, stage, labView, dock);
 app.append(shell);
 
 const layerSwitch = document.createElement("div");
@@ -73,8 +90,9 @@ status.className = "status";
 rail.append(status);
 
 const labHost = document.createElement("div");
-rail.append(labHost);
+labView.append(labHost);
 labHost.append(StatsPanel((settings) => schedule(() => executeBatch(settings)), (settings) => schedule(() => executeCompare(settings))));
+setWorkspace("board");
 
 let timeline: Timeline | null = null;
 let index = 0;
@@ -187,7 +205,7 @@ function paintTerminal(refocus: boolean): void {
   const list = dock.querySelector<HTMLElement>(".scrollback");
   const row = list?.querySelector<HTMLElement>("[data-selected='true']");
   if (list) list.scrollTop = listScroll;
-  if (list && row) {
+  if (shell.dataset.workspace === "terminal" && list && row) {
     const listRect = list.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
     if (rowRect.top < listRect.top) list.scrollTop -= listRect.top - rowRect.top;
@@ -240,21 +258,13 @@ function executeBatch(settings: LabSettings): void {
     return;
   }
   const stats = labBatch(settings);
-  const findings = diagnose(signalsFromL02(stats));
-  const lines = diagnosticSummary(findings);
-  fillLabResults(labHost, "Batch", [batchRows(stats)]);
-  fillDiagnostics(labHost, {
-    chips: findings.map((finding) => ({
-      status: finding.status,
-      text: `${finding.status[0]!.toUpperCase()}${finding.status.slice(1)} · ${finding.label}`,
-    })),
-    lines,
-    extremes: [],
-    problems: [],
-  });
+  const lines = diagnosticSummary(diagnose(signalsFromL02(stats)));
+  renderLab(labHost, presentBatch(stats));
   addNote("stats", "BATCH", batchRows(stats).map((row) => `${row.label} ${row.value}`).join(" · "));
   for (const line of lines) addNote("stats", "DIAG", line);
+  setWorkspace("lab");
   status.textContent = "";
+  workspaceStatus.textContent = "";
 }
 
 function executeCompare(settings: Pick<LabSettings, "runs" | "seedStart" | "turns">): void {
@@ -263,28 +273,8 @@ function executeCompare(settings: Pick<LabSettings, "runs" | "seedStart" | "turn
     return;
   }
   const compared = labCompare(settings);
-  const groups = compared.rows.map((row) => [
-    { label: row.name, value: `${row.runs} runs · ${row.turnCount} turns` },
-    { label: "Rank 6", value: batchRows(row).find((item) => item.label === "Rank 6")?.value ?? "" },
-    { label: "Average final rank", value: row.averageFinalRank.toFixed(2) },
-    { label: "Average evolutions", value: row.averageEvolutions.toFixed(2) },
-    { label: "Average Water", value: row.averageWater.toFixed(2) },
-    { label: "Average Air", value: row.averageAir.toFixed(2) },
-    { label: "Average veil", value: row.averageVeil.toFixed(2) },
-    { label: "Average altar overflow", value: row.averageOverflows.toFixed(2) },
-  ]);
   const spread = compareSpread(compared.rows.map((row) => ({ name: row.name, signals: signalsFromL02(row) })));
-  fillLabResults(labHost, "Four-way compare", groups);
-  fillDiagnostics(labHost, {
-    chips: [],
-    lines: [],
-    extremes: spread.extremes.map((item) => ({
-      label: item.label,
-      best: `${item.bestName} ${item.bestValue}`,
-      worst: `${item.worstName} ${item.worstValue}`,
-    })),
-    problems: spread.problemLines,
-  });
+  renderLab(labHost, presentCompare(compared.rows));
   for (const row of compared.rows) {
     addNote("stats", "COMPARE", `${row.name} rank6 ${batchRows(row).find((item) => item.label === "Rank 6")?.value} avg ${row.averageFinalRank.toFixed(2)} water ${row.averageWater.toFixed(2)} air ${row.averageAir.toFixed(2)} veil ${row.averageVeil.toFixed(2)}`);
   }
@@ -292,18 +282,31 @@ function executeCompare(settings: Pick<LabSettings, "runs" | "seedStart" | "turn
     addNote("stats", "DIAG", `${item.label}: best ${item.bestName} ${item.bestValue}, worst ${item.worstName} ${item.worstValue}.`);
   }
   for (const line of spread.problemLines) addNote("stats", "DIAG", line);
+  setWorkspace("lab");
   status.textContent = "";
+  workspaceStatus.textContent = "";
 }
 
 function schedule(work: () => void): void {
   status.textContent = "Running…";
+  workspaceStatus.textContent = "Running…";
   window.setTimeout(() => {
     try {
       work();
     } catch (error) {
-      status.textContent = error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
+      status.textContent = message;
+      workspaceStatus.textContent = message;
     }
   }, 0);
+}
+
+function setWorkspace(next: "board" | "lab" | "terminal"): void {
+  shell.dataset.workspace = next;
+  for (const button of tabs.querySelectorAll("button")) {
+    button.dataset.selected = button.dataset.workspace === next ? "true" : "false";
+  }
+  if (next === "terminal") paintTerminal(false);
 }
 
 function readRunForm(): Record<string, string> {

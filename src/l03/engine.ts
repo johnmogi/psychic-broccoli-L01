@@ -27,7 +27,6 @@ export function resolveTurn(state: L03State): L03State {
   const turn = next.completedTurns + 1;
   const player = activePlayer(next);
   emit(next, { type: "TURN_START", turn, playerId: player.id });
-  surfacePd(next, turn, player.id);
   refill(next, turn);
   routeMajors(next, turn, player.id);
   collectLeftmostMinor(next, turn, player);
@@ -139,14 +138,19 @@ function refill(state: L03State, turn: number): void {
 
 function routeMajors(state: L03State, turn: number, playerId: string): void {
   if (!state.config.majorsEnabled) return;
+  const waiting = state.pd;
   let guard = state.deck.length + state.roundTable.length + 4;
+  let settled = false;
   while (guard > 0) {
     guard -= 1;
     const visible = visibleMajors(state);
     const field = combinedField(state, visible);
     noteField(state, turn);
     maybeTriangulate(state, turn, playerId, field);
-    if (!visible.length) return;
+    if (!visible.length) {
+      settled = true;
+      break;
+    }
     if (visible.length === 1 && state.config.pdEnabled && !state.pd) {
       const only = visible[0]!;
       state.roundTable[only.index] = null;
@@ -155,11 +159,14 @@ function routeMajors(state: L03State, turn: number, playerId: string): void {
       refill(state, turn);
       continue;
     }
+    const incoming = visible.map((slot) => slot.card);
     for (const slot of visible) state.roundTable[slot.index] = null;
-    for (const slot of visible) enterAltar(state, turn, slot.card, playerId);
+    if (state.pd) surfacePd(state, turn, playerId);
+    for (const card of incoming) enterAltar(state, turn, card, playerId);
     refill(state, turn);
   }
-  throw new Error("Major routing did not settle");
+  if (!settled) throw new Error("Major routing did not settle");
+  if (state.pd && state.pd === waiting) surfacePd(state, turn, playerId);
 }
 
 function maybeTriangulate(state: L03State, turn: number, playerId: string, field: MajorCard[]): void {
@@ -206,6 +213,7 @@ function enterAltar(state: L03State, turn: number, incoming: MajorCard, playerId
     if (state.config.majorOverflowMode === "activeChoice") {
       throw new Error("majorOverflowMode activeChoice is not implemented; newestStays remains the L03 default");
     }
+    // A rank 6+ lineage may later choose which major stays. L03 keeps the newest.
     state.veil.push(current);
     emit(state, { type: "MAJOR_TO_VEIL", turn, card: snapMajor(current), reason: "replaced" });
     emit(state, { type: "MAJOR_REPLACED", turn, older: snapMajor(current), newer: snapMajor(incoming) });

@@ -5,6 +5,7 @@ export function TimelineBar(
   total: number,
   turnCount: number,
   onMove: (action: "start" | "back" | "next" | "end") => void,
+  onRun?: () => void,
 ): HTMLElement {
   const el = document.createElement("section");
   el.className = "timeline";
@@ -25,6 +26,14 @@ export function TimelineBar(
     button.addEventListener("click", () => onMove(action));
     controls.append(button);
   }
+  if (onRun) {
+    const run = document.createElement("button");
+    run.type = "button";
+    run.textContent = "Run engine";
+    run.dataset.action = "run";
+    run.addEventListener("click", () => onRun());
+    controls.append(run);
+  }
 
   const position = document.createElement("p");
   position.className = "timeline-position";
@@ -34,15 +43,6 @@ export function TimelineBar(
   summary.className = "timeline-summary";
   summary.textContent = frame.summary;
 
-  const changed = document.createElement("p");
-  changed.className = "what-changed";
-  changed.dataset.component = "WhatChanged";
-  const label = document.createElement("span");
-  label.textContent = "What changed";
-  const text = document.createElement("strong");
-  text.textContent = frame.explanation;
-  changed.append(label, text);
-
-  el.append(controls, position, summary, changed);
+  el.append(controls, position, summary);
   return el;
 }

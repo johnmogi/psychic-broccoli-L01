@@ -1,6 +1,7 @@
 import type { Element } from "../cards.js";
 import { formatCard } from "../cards.js";
 import type { BoardSnap } from "./capture.js";
+import { formatEventIndex } from "./commands.js";
 import { consoleFrom } from "./inspect.js";
 
 export interface Highlight {
@@ -69,7 +70,7 @@ export function timelinePositionLabel(
   const turnText = shownTurn === null || turnCount <= 0 ? "—" : String(shownTurn);
   const planned = turnCount > 0 ? String(turnCount) : "—";
   const player = frame.playerId ?? "—";
-  return `Turn ${turnText} / ${planned} · Event ${frame.index + 1} / ${eventTotal} · ${frame.eventType} · ${player}`;
+  return `Turn ${turnText} / ${planned} · Event ${frame.index + 1} / ${eventTotal} · ${formatEventIndex(frame.index)} · ${frame.eventType} · ${player}`;
 }
 
 export function moveTimeline(index: number, total: number, action: "start" | "back" | "next" | "end"): number {

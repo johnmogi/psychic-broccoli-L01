@@ -9,7 +9,7 @@ import { captureFrames } from "../../src/z01/capture.js";
 import { consoleFrom, inspectBoard, metricItems, type ConsoleEntry, type MetricItem } from "../../src/z01/inspect.js";
 import { requestFromValues, settingSpecs } from "../../src/z01/settings.js";
 import { buildTimeline, moveTimeline, type Timeline } from "../../src/z01/timeline.js";
-import { routeCommand, scrollbackText } from "../../src/z01/commands.js";
+import { routeCommand, eventsJson, formatEventIndex, scrollbackText } from "../../src/z01/commands.js";
 import { compareSpread, diagnose, diagnosticSummary, signalsFromL02 } from "../../src/z01/diagnostics.js";
 import { batchRows, labBatch, labCompare, type LabSettings } from "../../src/z01/lab.js";
 import { presentBatch, presentCompare } from "../../src/z01/present.js";
@@ -52,7 +52,9 @@ const timelineHost = document.createElement("div");
 timelineHost.className = "timeline-sticky";
 const boardHost = document.createElement("div");
 boardHost.className = "board-scroll";
-stage.append(timelineHost, boardHost);
+const inspectorHost = document.createElement("aside");
+inspectorHost.className = "inspector";
+stage.append(timelineHost, boardHost, inspectorHost);
 const labView = document.createElement("section");
 labView.className = "lab-view";
 const dock = document.createElement("footer");
@@ -184,6 +186,7 @@ function renderFrame(): void {
 
   const zones = document.createElement("div");
   zones.className = "zones";
+  zones.dataset.layer = timeline.layer;
   for (const zone of view.zones) zones.append(ZoneView(zone));
 
   const board = document.createElement("div");
@@ -196,11 +199,38 @@ function renderFrame(): void {
     if (!timeline) return;
     index = moveTimeline(index, timeline.frames.length, action);
     renderFrame();
-  }));
-  board.append(banner, players, zones, MetricsPanel(metrics, frame.highlight.zones.includes("metrics")));
+  }, () => run(readRunForm())));
+  board.append(banner, players, zones);
   boardHost.replaceChildren(board);
   boardHost.scrollTop = kept;
+  inspectorHost.replaceChildren(inspectorPanel(frame, view));
   paintTerminal(false);
+}
+
+function inspectorPanel(frame: NonNullable<Timeline["frames"][number]>, view: ReturnType<typeof inspectBoard>): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "inspector-stack";
+  const changed = document.createElement("p");
+  changed.className = "what-changed";
+  changed.dataset.component = "WhatChanged";
+  const label = document.createElement("span");
+  label.textContent = "What changed";
+  const text = document.createElement("strong");
+  text.textContent = frame.explanation;
+  changed.append(label, text);
+  const detail = document.createElement("p");
+  detail.className = "event-detail";
+  detail.textContent = `${formatEventIndex(frame.index)} · ${frame.summary}`;
+  el.append(changed, detail);
+  const milestone = view.zones.find((zone) => zone.id === "milestone");
+  if (milestone?.hint) {
+    const field = document.createElement("p");
+    field.className = "field-readout";
+    field.textContent = milestone.hint;
+    el.append(field);
+  }
+  el.append(MetricsPanel(metrics, frame.highlight.zones.includes("metrics")));
+  return el;
 }
 
 function visibleEntries(): ConsoleEntry[] {
@@ -239,11 +269,11 @@ function consoleHandlers() {
       else if (routed.action === "batch") schedule(() => executeBatch(readLabForm()));
       else if (routed.action === "compare") schedule(() => executeCompare(readLabForm()));
       else if (routed.action === "copy-logs") void copyText(scrollbackText(visibleEntries()), "logs");
-      else if (routed.action === "copy-events") void copyText(JSON.stringify(runEvents, null, 2), "events");
+      else if (routed.action === "copy-events") void copyText(eventsJson(runEvents), "events");
       if (routed.action !== "run") paintTerminal(true);
     },
     onCopyLogs: () => void copyText(scrollbackText(visibleEntries()), "logs"),
-    onCopyEvents: () => void copyText(JSON.stringify(runEvents, null, 2), "events"),
+    onCopyEvents: () => void copyText(eventsJson(runEvents), "events"),
   };
 }
 

@@ -126,17 +126,28 @@ export function inspectBoard(layer: "L01" | "L02" | "L03", board: BoardSnap, hig
     mark(pile("deck", "Deck", board.deck), highlight, "deck"),
   ];
   if (layer === "L03") {
-    zones.splice(1, 0, mark(pile("pd", "Parallel dimension", board.pd ? [board.pd] : [], "one major waits until next turn"), highlight, "pd"));
-    if ((board.teamMilestones ?? 0) > 0) {
-      zones.push({
-        id: "milestone",
-        title: "Joker / milestone",
-        hint: `${board.teamMilestones} team milestone${board.teamMilestones === 1 ? "" : "s"}`,
-        cards: [],
-        highlighted: highlight.zones.includes("milestone"),
-        quiet: false,
-      });
-    }
+    const milestone = board.teamMilestones ?? 0;
+    const field = board.maxCombinedMajors ?? 0;
+    zones.splice(1, 0, mark(pile("pd", "Parallel dimension", board.pd ? [board.pd] : [], "one major waits until the next major or the next turn"), highlight, "pd"));
+    const altarMajor = zones.find((zone) => zone.id === "altar-major");
+    const minors = zones.find((zone) => zone.id === "altar-minors");
+    const rest = zones.filter((zone) => zone.id !== "altar-major" && zone.id !== "altar-minors" && zone.id !== "pd");
+    const ordered = [
+      rest.find((zone) => zone.id === "round-table"),
+      zones.find((zone) => zone.id === "pd"),
+      altarMajor,
+      minors,
+      ...rest.filter((zone) => zone.id !== "round-table"),
+    ].filter((zone): zone is ZoneModel => !!zone);
+    ordered.push({
+      id: "milestone",
+      title: "Joker / milestone",
+      hint: `${milestone} team milestone${milestone === 1 ? "" : "s"} · field ${field}`,
+      cards: [],
+      highlighted: highlight.zones.includes("milestone"),
+      quiet: false,
+    });
+    return { players, zones: ordered };
   }
   if (layer === "L01") {
     const pending = board.pendingCardId ? [faceById(cardsOn(board), board.pendingCardId)] : [];
@@ -146,7 +157,7 @@ export function inspectBoard(layer: "L01" | "L02" | "L03", board: BoardSnap, hig
 }
 
 function boardOf(state: GameState | L02State): BoardSnap {
-  const extra = state as { pd?: MajorCard | null; teamMilestones?: number };
+  const extra = state as { pd?: MajorCard | null; teamMilestones?: number; maxCombinedMajors?: number };
   return {
     status: state.status,
     completedTurns: state.completedTurns,
@@ -160,6 +171,7 @@ function boardOf(state: GameState | L02State): BoardSnap {
     veil: state.veil,
     pd: extra.pd ?? null,
     teamMilestones: extra.teamMilestones ?? 0,
+    maxCombinedMajors: extra.maxCombinedMajors ?? 0,
   };
 }
 

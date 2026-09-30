@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { routeCommand, scrollbackText } from "../src/z01/commands.js";
+import { eventsJson, formatEventIndex, routeCommand, scrollbackText } from "../src/z01/commands.js";
+import { consoleFrom } from "../src/z01/inspect.js";
+import { timelinePositionLabel } from "../src/z01/timeline.js";
 import { batchRows, labBatch, labCompare } from "../src/z01/lab.js";
 
 describe("admin stats lab", () => {
@@ -30,7 +32,14 @@ describe("admin stats lab", () => {
     expect(rows.map((row) => row.label)).toContain("Average Water");
     expect(rows.find((row) => row.label === "Average Air")?.value).toBe("0.00");
     expect(stats.runs).toBe(2);
-    expect(scrollbackText([{ index: 18, eventType: "COMPLETE", text: "complete 4" }])).toBe("018  COMPLETE  complete 4");
+    expect(scrollbackText([{ index: 18, eventType: "COMPLETE", text: "complete 4" }])).toBe("#018  COMPLETE  complete 4");
+    const terminal = consoleFrom([{ type: "SETUP" }, { type: "TURN_START", turn: 1, playerId: "P1" }]);
+    expect(terminal.map((row) => row.index)).toEqual([0, 1]);
+    expect(new Set(terminal.map((row) => row.index)).size).toBe(terminal.length);
+    expect(scrollbackText(terminal).split("\n")[0]).toMatch(new RegExp(`^${formatEventIndex(0)}`));
+    expect(timelinePositionLabel({ index: 18, turn: 2, eventType: "COLLECT", playerId: "P1" }, 69, 6)).toContain("Event 19 / 69");
+    expect(timelinePositionLabel({ index: 18, turn: 2, eventType: "COLLECT", playerId: "P1" }, 69, 6)).toContain(formatEventIndex(18));
+    expect(eventsJson([{ type: "SETUP" }])).toContain('"#000"');
   });
 
   it("compares the four presets on one seed list", () => {

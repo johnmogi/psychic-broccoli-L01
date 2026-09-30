@@ -12,9 +12,9 @@ The default major deck is the full catalog: Prince, Queen, and King, times Air, 
 
 After the table refills, majors on the Round Table are routed before anyone collects.
 
-- One major, and PD is empty, moves to PD. It is not collected into a hand. It surfaces to the altar at the start of the next turn.
-- Two majors in the same routing window go straight to altar resolution and are checked for Eclipse.
-- Three majors of the same rank in the combined field trigger Triangulation when triangulation is enabled. Prince, Queen, and King do not mix.
+- One major, and PD is empty, moves to PD. It is not collected into a hand. It surfaces on a later turn when no new major appears.
+- If PD already holds a major and another major appears, the PD major surfaces immediately. Both resolve in the same altar window, including Eclipse and Triangulation.
+- Two or more majors in the same routing window go to that altar window. An occupied PD is included.
 
 PD holds one major. Water and Air effects only move minors. They do not pull a major out of PD, the altar major slot, or the Veil top.
 

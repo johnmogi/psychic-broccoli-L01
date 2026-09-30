@@ -42,6 +42,7 @@ describe("admin playtest copy", () => {
       veil: [],
       pd: null,
       teamMilestones: 0,
+      maxCombinedMajors: 0,
     };
     const view = inspectBoard("L02", board, { cardIds: [], zones: [], slots: [] });
     const table = view.zones.find((zone) => zone.id === "round-table");

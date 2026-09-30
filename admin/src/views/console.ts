@@ -1,3 +1,4 @@
+import { formatEventIndex } from "../../../src/z01/commands.js";
 import type { ConsoleEntry } from "../../../src/z01/inspect.js";
 
 export interface ConsoleHandlers {
@@ -49,7 +50,7 @@ export function EventConsole(entries: readonly ConsoleEntry[], handlers: Console
 
     const index = document.createElement("span");
     index.className = "term-index";
-    index.textContent = String(Math.max(0, entry.index)).padStart(3, "0");
+    index.textContent = formatEventIndex(entry.index);
 
     const kind = document.createElement("span");
     kind.className = "term-kind";

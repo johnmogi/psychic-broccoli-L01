@@ -84,10 +84,10 @@ describe("admin stat diagnostics", () => {
 
   it("labels the timeline with turn and event counts", () => {
     expect(timelinePositionLabel({ index: 68, turn: null, eventType: "COMPLETE", playerId: null }, 69, 6)).toBe(
-      "Turn 6 / 6 · Event 69 / 69 · COMPLETE · —",
+      "Turn 6 / 6 · Event 69 / 69 · #068 · COMPLETE · —",
     );
     expect(timelinePositionLabel({ index: 0, turn: null, eventType: "SETUP", playerId: null }, 69, 6)).toBe(
-      "Turn — / 6 · Event 1 / 69 · SETUP · —",
+      "Turn — / 6 · Event 1 / 69 · #000 · SETUP · —",
     );
   });
 });

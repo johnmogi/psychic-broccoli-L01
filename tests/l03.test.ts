@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createMajorCatalog } from "../src/cards.js";
 import { captureFrames } from "../src/z01/capture.js";
-import { playL03, isDefaultEclipse } from "../src/l03/engine.js";
+import { playL03, resolveTurn, isDefaultEclipse } from "../src/l03/engine.js";
+import { isMinor } from "../src/l03/state.js";
 import { major } from "../src/cards.js";
 import { l03MetricsFromEvents } from "../src/l03/metrics.js";
 import { settingSpecs } from "../src/z01/settings.js";
@@ -16,6 +17,21 @@ const sunKing = "major-sun-earth-king";
 
 function scripted(ids: string[], turns = 3) {
   return playL03("script", { turnCount: turns, majorDeckMode: "scripted", scriptedMajorIds: ids, waterResurfaceEnabled: false, airSwapEnabled: false });
+}
+
+function openTable() {
+  const state = playL03("collision", {
+    turnCount: 1,
+    majorDeckMode: "scripted",
+    scriptedMajorIds: [],
+    waterResurfaceEnabled: false,
+    airSwapEnabled: false,
+  });
+  const minors = state.deck.filter(isMinor);
+  state.roundTable = [null, null, null];
+  state.pd = null;
+  state.status = "running";
+  return { state, minors };
 }
 
 describe("Z03 eclipse layer", () => {
@@ -108,6 +124,41 @@ describe("Z03 eclipse layer", () => {
     expect(metrics.majorsToPd + metrics.eclipses + metrics.majorReplacements).toBeGreaterThan(0);
     const resurfaced = result.events.filter((event) => event.type === "RESURFACE");
     expect(resurfaced.every((event) => event.card.arcana === "minor")).toBe(true);
+  });
+
+  it("surfaces a waiting PD major with the new major in the same turn", () => {
+    const { state, minors } = openTable();
+    const sun = major("sun", "air", "queen");
+    const moon = major("moon", "fire", "queen");
+    state.deck = [sun, minors[0]!, minors[1]!, moon, ...minors.slice(2)];
+    const next = resolveTurn(state);
+    const types = next.events.filter((event) => "turn" in event && event.turn === 2).map((event) => event.type);
+    expect(types.indexOf("PD_SURFACE")).toBeGreaterThan(types.indexOf("TO_PD"));
+    expect(types).toContain("ECLIPSE");
+    expect(next.pd).toBeNull();
+    expect(next.altar.major?.id).toBe(moon.id);
+    expect(next.veil.some((card) => card.id === sun.id)).toBe(true);
+
+    const quiet = openTable();
+    const heldMajor = major("sun", "earth", "king");
+    quiet.state.deck = [heldMajor, ...quiet.minors];
+    const held = resolveTurn(quiet.state);
+    expect(held.pd?.id).toBe(heldMajor.id);
+    expect(held.events.some((event) => event.type === "PD_SURFACE")).toBe(false);
+    held.deck = held.deck.filter(isMinor);
+    const later = resolveTurn(held);
+    expect(later.events.some((event) => event.type === "PD_SURFACE" && event.turn === 3)).toBe(true);
+    expect(later.pd).toBeNull();
+
+    const replaced = openTable();
+    const older = major("sun", "air", "queen");
+    const newer = major("sun", "earth", "queen");
+    replaced.state.deck = [older, replaced.minors[0]!, replaced.minors[1]!, newer, ...replaced.minors.slice(2)];
+    const low = resolveTurn(replaced.state);
+    expect(low.events.some((event) => event.type === "ECLIPSE" && "turn" in event && event.turn === 2)).toBe(false);
+    expect(low.events.some((event) => event.type === "MAJOR_TO_VEIL" && event.reason === "replaced")).toBe(true);
+    expect(low.altar.major?.id).toBe(newer.id);
+    expect(low.veil.some((card) => card.id === older.id)).toBe(true);
   });
 
   it("runs the l03 CLI", () => {

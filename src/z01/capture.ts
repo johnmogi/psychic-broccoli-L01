@@ -15,6 +15,7 @@ export interface BoardSnap {
   veil: SnapCard[];
   pd: MajorCard | null;
   teamMilestones: number;
+  maxCombinedMajors: number;
 }
 
 interface BoardSource {
@@ -29,6 +30,7 @@ interface BoardSource {
   veil: readonly SnapCard[];
   pd?: MajorCard | null;
   teamMilestones?: number;
+  maxCombinedMajors?: number;
 }
 
 let recording: BoardSnap[] | null = null;
@@ -68,6 +70,7 @@ export function boardFromState(state: BoardSource): BoardSnap {
     veil: state.veil.map(copyCard),
     pd: state.pd ? copyMajor(state.pd) : null,
     teamMilestones: state.teamMilestones ?? 0,
+    maxCombinedMajors: state.maxCombinedMajors ?? 0,
   };
 }
 

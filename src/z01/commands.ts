@@ -32,6 +32,15 @@ export function routeCommand(input: string): RoutedCommand {
   }
 }
 
+/** Zero-based event id, shared by the timeline, terminal rows, and copied logs. */
+export function formatEventIndex(index: number): string {
+  return `#${String(Math.max(0, index)).padStart(3, "0")}`;
+}
+
 export function scrollbackText(entries: readonly { index: number; eventType: string; text: string }[]): string {
-  return entries.map((entry) => `${String(entry.index).padStart(3, "0")}  ${entry.eventType}  ${entry.text}`).join("\n");
+  return entries.map((entry) => `${formatEventIndex(entry.index)}  ${entry.eventType}  ${entry.text}`).join("\n");
+}
+
+export function eventsJson(events: readonly unknown[]): string {
+  return JSON.stringify(events.map((event, index) => ({ index: formatEventIndex(index), event })), null, 2);
 }

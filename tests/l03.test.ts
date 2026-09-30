@@ -4,6 +4,8 @@ import { captureFrames } from "../src/z01/capture.js";
 import { playL03, isDefaultEclipse } from "../src/l03/engine.js";
 import { major } from "../src/cards.js";
 import { l03MetricsFromEvents } from "../src/l03/metrics.js";
+import { settingSpecs } from "../src/z01/settings.js";
+import { diagnose } from "../src/z01/diagnostics.js";
 import { main } from "../src/cli.js";
 
 const sunQueen = "major-sun-air-queen";
@@ -54,16 +56,26 @@ describe("Z03 eclipse layer", () => {
     expect(differentRank.events.some((event) => event.type === "ECLIPSE")).toBe(false);
   });
 
-  it("triangulates three majors in one routing window once", () => {
-    const state = scripted([sunQueen, moonQueen, sunKing], 2);
-    const triangulations = state.events.filter((event) => event.type === "TRIANGULATION");
-    expect(triangulations).toHaveLength(1);
-    expect(state.events.some((event) => event.type === "TEAM_MILESTONE")).toBe(true);
-    expect(state.altar.major).not.toBeNull();
-    const off = playL03("script", {
+  it("triangulates three majors of the same rank and ignores a mixed set", () => {
+    const queens = scripted([sunQueen, moonQueen, sunQueenEarth], 2);
+    expect(queens.events.filter((event) => event.type === "TRIANGULATION")).toHaveLength(1);
+    expect(queens.events.some((event) => event.type === "TEAM_MILESTONE")).toBe(true);
+    expect(queens.altar.major).not.toBeNull();
+    const mixed = scripted([sunQueen, moonQueen, sunKing], 2);
+    expect(mixed.events.some((event) => event.type === "TRIANGULATION")).toBe(false);
+    const easy = playL03("script", {
       turnCount: 2,
       majorDeckMode: "scripted",
       scriptedMajorIds: [sunQueen, moonQueen, sunKing],
+      triangulationMode: "anyThreeMajors",
+      waterResurfaceEnabled: false,
+      airSwapEnabled: false,
+    });
+    expect(easy.events.filter((event) => event.type === "TRIANGULATION")).toHaveLength(1);
+    const off = playL03("script", {
+      turnCount: 2,
+      majorDeckMode: "scripted",
+      scriptedMajorIds: [sunQueen, moonQueen, sunQueenEarth],
       triangulationEnabled: false,
       waterResurfaceEnabled: false,
       airSwapEnabled: false,
@@ -102,5 +114,17 @@ describe("Z03 eclipse layer", () => {
     const log = main(["l03", "--seed", "42", "--turns", "2"]);
     expect(log).toMatch(/L03 TURNS 2/);
     expect(log).toMatch(/L03 METRICS/);
+  });
+
+  it("describes same-rank triangulation and classifies the lab rates", () => {
+    const specs = settingSpecs("L03");
+    const rule = specs.find((spec) => spec.id === "triangulationMode");
+    expect(rule?.options?.map((option) => option.label).join(" ")).toMatch(/same rank/);
+    expect(rule?.note).toMatch(/Round Table \+ PD \+ altar/);
+    expect(specs.find((spec) => spec.id === "majorDeckMode")?.options?.[0]?.label).toMatch(/24 majors/);
+    expect(diagnose({ triangulationRate: 1 })[0]?.status).toBe("problem");
+    expect(diagnose({ eclipseRate: 0.99 })[0]?.status).not.toBe("problem");
+    expect(diagnose({ eclipseRate: 0.9 })[0]?.status).toBe("healthy");
+    expect(diagnose({ eclipseRate: 0.4 })[0]?.status).toBe("problem");
   });
 });

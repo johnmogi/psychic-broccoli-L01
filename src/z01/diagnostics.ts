@@ -144,6 +144,48 @@ export const L02_DIAGNOSTIC_CHECKS: readonly DiagnosticCheck[] = [
   },
 ];
 
+export const Z03_DIAGNOSTIC_CHECKS: readonly DiagnosticCheck[] = [
+  {
+    id: "eclipseRate",
+    layer: "Z03",
+    label: "eclipse rate",
+    classify: eclipseStatus,
+    describe: (value, status) => {
+      const rate = percent(value);
+      if (status === "problem") return `Problem: eclipse rate is ${rate}, below the 50% floor.`;
+      if (value < 0.8) return `Watch: eclipse rate is ${rate}, below the 80% tutorial range.`;
+      if (value > 0.98) return `Watch: eclipse rate is ${rate}, above 98%. Still tutorial-friendly.`;
+      return `Healthy: eclipse rate is ${rate}, inside the 80–100% tutorial range.`;
+    },
+  },
+  {
+    id: "triangulationRate",
+    layer: "Z03",
+    label: "triangulation rate",
+    classify: triangulationStatus,
+    describe: (value, status) => {
+      const rate = percent(value);
+      if (status === "problem") return `Problem: triangulation rate is ${rate}, above the 30% ceiling.`;
+      if (status === "healthy") return `Healthy: triangulation rate is ${rate}, inside the 1–15% range.`;
+      if (value === 0) return "Watch: triangulation rate is 0%. Rare is expected; zero is not a failure.";
+      if (value < 0.01) return `Watch: triangulation rate is ${rate}, below the 1% range.`;
+      return `Watch: triangulation rate is ${rate}, above the 15% range.`;
+    },
+  },
+];
+
+function eclipseStatus(value: number): DiagnosticStatus {
+  if (value < 0.5) return "problem";
+  if (value < 0.8 || value > 0.98) return "watch";
+  return "healthy";
+}
+
+function triangulationStatus(value: number): DiagnosticStatus {
+  if (value > 0.3) return "problem";
+  if (value >= 0.01 && value <= 0.15) return "healthy";
+  return "watch";
+}
+
 export function higher(value: number, healthyAt: number, watchAt: number): DiagnosticStatus {
   if (value >= healthyAt) return "healthy";
   if (value >= watchAt) return "watch";
@@ -156,7 +198,7 @@ export function lower(value: number, healthyAt: number, watchAt: number): Diagno
   return "problem";
 }
 
-export function diagnose(signals: DiagnosticSignals, checks: readonly DiagnosticCheck[] = L02_DIAGNOSTIC_CHECKS): DiagnosticFinding[] {
+export function diagnose(signals: DiagnosticSignals, checks: readonly DiagnosticCheck[] = [...L02_DIAGNOSTIC_CHECKS, ...Z03_DIAGNOSTIC_CHECKS]): DiagnosticFinding[] {
   const findings: DiagnosticFinding[] = [];
   for (const check of checks) {
     const value = signals[check.id];

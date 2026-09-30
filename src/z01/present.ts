@@ -4,7 +4,9 @@ import {
   compareSpread,
   diagnose,
   diagnosticSummary,
+  L02_DIAGNOSTIC_CHECKS,
   RESERVED_DIAGNOSTIC_SIGNALS,
+  Z03_DIAGNOSTIC_CHECKS,
   signalsFromL02,
   type DiagnosticSignals,
   type DiagnosticStatus,
@@ -86,14 +88,16 @@ export function futureSlots(signals: DiagnosticSignals): LabMeter[] {
 
 export function presentBatch(stats: L02BatchStats, extra: DiagnosticSignals = {}): LabPresentation {
   const signals = { ...signalsFromL02(stats), ...extra };
+  const findings = diagnose(signals, [...L02_DIAGNOSTIC_CHECKS, ...Z03_DIAGNOSTIC_CHECKS]);
+  const classified = new Set(findings.map((finding) => finding.id));
   return {
     kind: "batch",
-    findings: orderedDiagnosticLines(diagnose(signals)),
+    findings: orderedDiagnosticLines(findings),
     meters: batchMeters(stats),
     ranks: rankCharts(stats.rankDistribution),
     pressure: pressureRows(stats),
     compare: [],
-    slots: futureSlots(signals),
+    slots: futureSlots(signals).filter((slot) => !classified.has(slot.id as keyof DiagnosticSignals)),
   };
 }
 

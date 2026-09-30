@@ -14,7 +14,7 @@ After the table refills, majors on the Round Table are routed before anyone coll
 
 - One major, and PD is empty, moves to PD. It is not collected into a hand. It surfaces to the altar at the start of the next turn.
 - Two majors in the same routing window go straight to altar resolution and are checked for Eclipse.
-- Three majors in the same routing window trigger Triangulation immediately when triangulation is enabled.
+- Three majors of the same rank in the combined field trigger Triangulation when triangulation is enabled. Prince, Queen, and King do not mix.
 
 PD holds one major. Water and Air effects only move minors. They do not pull a major out of PD, the altar major slot, or the Veil top.
 
@@ -26,9 +26,7 @@ On Eclipse the older major moves to the Veil, the incoming major stays in the on
 
 ## Triangulation
 
-`triangulationMode` defaults to `combinedMajorField`, and triangulation is enabled. The combined field is the majors visible on the Round Table before routing, plus the PD major, plus the altar major. Three majors in that field emit `TRIANGULATION` once per trigger, not on every later snapshot, and record a team milestone.
-
-`sameResolutionWindow` is not implemented. Turn triangulation off with `triangulationEnabled: false`.
+`triangulationMode` defaults to `sameRankMajorSet`, and triangulation is enabled. The combined field is the majors visible on the Round Table before routing, plus the PD major, plus the altar major, including majors in the current altar resolution window. Three majors of the same rank in that field emit `TRIANGULATION` once per trigger, not on every later snapshot, and record a team milestone. Element and back do not matter. `anyThreeMajors` is the experimental mode that still fires on any three majors. Turn triangulation off with `triangulationEnabled: false`.
 
 ## Altar major capacity
 

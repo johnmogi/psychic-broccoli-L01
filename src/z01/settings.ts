@@ -66,16 +66,27 @@ export function settingSpecs(layer: "L01" | "L02" | "L03", seed = "42"): Setting
       { id: "turnCount", label: "Turns", control: "number", value: String(L03_DEFAULTS.turnCount) },
       { id: "waterResurfaceEnabled", label: "Water resurface", control: "checkbox", value: "true" },
       { id: "airSwapEnabled", label: "Air swap", control: "checkbox", value: "true" },
-      { id: "eclipseEnabled", label: "Eclipse", control: "checkbox", value: "true" },
+      { id: "eclipseEnabled", label: "Eclipse", control: "checkbox", value: "true", note: "Same rank, opposite Sun/Moon back. Element does not matter." },
       { id: "triangulationEnabled", label: "Triangulation", control: "checkbox", value: "true" },
+      {
+        id: "triangulationMode",
+        label: "Triangulation rule",
+        control: "select",
+        value: L03_DEFAULTS.triangulationMode,
+        options: [
+          { value: "sameRankMajorSet", label: "same rank — three Princes, Queens, or Kings" },
+          { value: "anyThreeMajors", label: "any three majors — experimental" },
+        ],
+        note: "Combined field: Round Table + PD + altar/resolution majors. Element and back do not matter.",
+      },
       {
         id: "majorDeckMode",
         label: "Major deck",
         control: "select",
         value: L03_DEFAULTS.majorDeckMode,
         options: [
-          { value: "full", label: "full catalog" },
-          { value: "scripted", label: "scripted prefix" },
+          { value: "full", label: "full catalog — all 24 majors eligible" },
+          { value: "scripted", label: "scripted prefix — tutorial opening, then the rest of the deck" },
         ],
       },
       {
@@ -84,10 +95,9 @@ export function settingSpecs(layer: "L01" | "L02" | "L03", seed = "42"): Setting
         control: "select",
         value: L03_DEFAULTS.majorOverflowMode,
         options: [
-          { value: "newestStays", label: "newestStays" },
-          { value: "activeChoice", label: "activeChoice" },
+          { value: "newestStays", label: "newestStays — incoming major stays, previous altar major goes to Veil" },
+          { value: "activeChoice", label: "activeChoice — future hook, currently unavailable" },
         ],
-        note: "activeChoice is an engine hook and still rejects",
       },
     ];
   }
@@ -140,6 +150,7 @@ export function requestFromValues(layer: "L01" | "L02" | "L03", values: Record<s
       airSwapEnabled: values["airSwapEnabled"] !== "false",
       eclipseEnabled: values["eclipseEnabled"] !== "false",
       triangulationEnabled: values["triangulationEnabled"] !== "false",
+      triangulationMode: values["triangulationMode"] === "anyThreeMajors" ? "anyThreeMajors" : "sameRankMajorSet",
       majorDeckMode: values["majorDeckMode"] === "scripted" ? "scripted" : "full",
       majorOverflowMode: values["majorOverflowMode"] === "activeChoice" ? "activeChoice" : "newestStays",
       scriptedMajorIds: values["majorDeckMode"] === "scripted" ? ["major-sun-air-queen", "major-moon-fire-queen", "major-sun-earth-king"] : [],

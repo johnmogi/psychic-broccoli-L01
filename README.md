@@ -155,4 +155,4 @@ npm run l03:batch -- --runs 1000 --seed-start 1 --turns 9
 npm run l03:compare -- --runs 1000 --seed-start 1 --turns 9
 `
 
-The default deck is the full catalog. A scripted prefix can arrange specific majors and still keeps the rest of the catalog in the deck. Eclipse is same court and opposite Sun/Moon back. Triangulation fires once when three majors share the Round Table, PD, and altar field. The lock is in [docs/L03_RULES_LOCK.md](docs/L03_RULES_LOCK.md).
+The default deck is the full catalog. A scripted prefix can arrange specific majors and still keeps the rest of the catalog in the deck. Eclipse is same court and opposite Sun/Moon back. Triangulation fires once when three majors of the same rank share the Round Table, PD, and altar field. The lock is in [docs/L03_RULES_LOCK.md](docs/L03_RULES_LOCK.md).

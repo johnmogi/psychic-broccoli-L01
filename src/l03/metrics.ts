@@ -250,10 +250,10 @@ export function formatL03Batch(stats: L03BatchStats): string {
 }
 
 export function formatL03Compare(rows: readonly L03BatchStats[]): string {
-  const header = ["config".padEnd(28), "runs".padStart(6), "r6".padStart(8), "eclipse".padStart(9), "triang".padStart(8), "seen".padStart(8), "field".padStart(7)].join(" ");
+  const header = ["config".padEnd(32), "runs".padStart(6), "r6".padStart(8), "eclipse".padStart(9), "triang".padStart(8), "seen".padStart(8), "field".padStart(7)].join(" ");
   const body = rows.map((row) =>
     [
-      row.name.padEnd(28),
+      row.name.padEnd(32),
       String(row.runs).padStart(6),
       percent(row.playerRank6Rate).padStart(8),
       percent(row.eclipseRate).padStart(9),

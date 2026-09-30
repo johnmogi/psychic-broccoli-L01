@@ -12,7 +12,9 @@ export function playL03(seed: string, partial: Partial<L03Config> = {}): L03Stat
   if (!Number.isInteger(config.turnCount) || config.turnCount < 1) throw new Error("turnCount must be an integer of at least 1");
   if (config.highLevelMajorChoice) throw new Error("highLevelMajorChoice is not implemented; newestStays remains the L03 default");
   if (config.eclipseMode !== "sameRankOppositeBack") throw new Error(`eclipseMode ${String(config.eclipseMode)} is not implemented`);
-  if (config.triangulationMode !== "combinedMajorField") throw new Error(`triangulationMode ${String(config.triangulationMode)} is not implemented`);
+  if (config.triangulationMode !== "sameRankMajorSet" && config.triangulationMode !== "anyThreeMajors") {
+    throw new Error(`triangulationMode ${String(config.triangulationMode)} is not implemented`);
+  }
   let state = setup(seed, config);
   while (state.completedTurns < config.turnCount) state = resolveTurn(state);
   state.status = "completed";
@@ -141,9 +143,10 @@ function routeMajors(state: L03State, turn: number, playerId: string): void {
   while (guard > 0) {
     guard -= 1;
     const visible = visibleMajors(state);
-    if (!visible.length) return;
+    const field = combinedField(state, visible);
     noteField(state, turn);
-    maybeTriangulate(state, turn, playerId, visible.length);
+    maybeTriangulate(state, turn, playerId, field);
+    if (!visible.length) return;
     if (visible.length === 1 && state.config.pdEnabled && !state.pd) {
       const only = visible[0]!;
       state.roundTable[only.index] = null;
@@ -159,17 +162,31 @@ function routeMajors(state: L03State, turn: number, playerId: string): void {
   throw new Error("Major routing did not settle");
 }
 
-function maybeTriangulate(state: L03State, turn: number, playerId: string, visible: number): void {
-  const count = visible + (state.pd ? 1 : 0) + (state.altar.major ? 1 : 0);
-  if (!state.config.triangulationEnabled || count < 3) {
-    if (count < 3) state.triangulationOpen = false;
+function maybeTriangulate(state: L03State, turn: number, playerId: string, field: MajorCard[]): void {
+  if (!triangulationReady(state, field)) {
+    state.triangulationOpen = false;
     return;
   }
   if (state.triangulationOpen) return;
   state.triangulationOpen = true;
   state.teamMilestones += 1;
-  emit(state, { type: "TRIANGULATION", turn, count, playerId });
+  emit(state, { type: "TRIANGULATION", turn, count: field.length, playerId });
   emit(state, { type: "TEAM_MILESTONE", turn, playerId, reason: "triangulation" });
+}
+
+function triangulationReady(state: L03State, field: MajorCard[]): boolean {
+  if (!state.config.triangulationEnabled) return false;
+  if (state.config.triangulationMode === "anyThreeMajors") return field.length >= 3;
+  const counts = new Map<string, number>();
+  for (const card of field) counts.set(card.court, (counts.get(card.court) ?? 0) + 1);
+  return [...counts.values()].some((count) => count >= 3);
+}
+
+function combinedField(state: L03State, visible: { card: MajorCard }[]): MajorCard[] {
+  const field = visible.map((slot) => slot.card);
+  if (state.pd) field.push(state.pd);
+  if (state.altar.major) field.push(state.altar.major);
+  return field;
 }
 
 function enterAltar(state: L03State, turn: number, incoming: MajorCard, playerId: string): void {

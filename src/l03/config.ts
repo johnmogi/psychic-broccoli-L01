@@ -3,7 +3,7 @@ import type { AlignmentRule, MaxJump } from "../config.js";
 import type { AltarOverflowMode } from "../l02/config.js";
 
 export type EclipseMode = "sameRankOppositeBack";
-export type TriangulationMode = "combinedMajorField";
+export type TriangulationMode = "sameRankMajorSet" | "anyThreeMajors";
 export type MajorOverflowMode = "newestStays" | "activeChoice";
 export type MajorDeckMode = "full" | "scripted";
 
@@ -52,7 +52,7 @@ export const L03_DEFAULTS: L03Config = {
   eclipseEnabled: true,
   triangulationEnabled: true,
   eclipseMode: "sameRankOppositeBack",
-  triangulationMode: "combinedMajorField",
+  triangulationMode: "sameRankMajorSet",
   majorDeckMode: "full",
   majorOverflowMode: "newestStays",
   highLevelMajorChoice: false,

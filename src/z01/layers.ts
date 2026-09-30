@@ -14,7 +14,7 @@ export const LAYER_COPY = {
   L03: {
     code: "Z03 / L03",
     name: "Majors + PD + Eclipse",
-    rules: "Majors route through PD. One major waits a turn. Two check Eclipse. Three across the combined field triangulate. No combat yet.",
+    rules: "Majors route through PD. One major waits a turn. Two check Eclipse. Three majors of the same rank in the combined field triangulate. No combat yet.",
   },
 } as const;
 

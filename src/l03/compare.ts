@@ -23,9 +23,9 @@ export function compareL03(request: { runs: number; seedStart: number; turnCount
   const seeds = seedList(request.seedStart, request.runs);
   const shared = { turnCount: request.turnCount };
   const rows = [
-    runL03Batch({ seeds, name: "full/eclipse/tri", config: { ...shared, majorDeckMode: "full", eclipseEnabled: true, triangulationEnabled: true } }),
-    runL03Batch({ seeds, name: "scripted/eclipse/tri", config: { ...shared, majorDeckMode: "scripted", scriptedMajorIds: L03_COMPARE_SCRIPT, eclipseEnabled: true, triangulationEnabled: true } }),
-    runL03Batch({ seeds, name: "full/no-eclipse", config: { ...shared, majorDeckMode: "full", eclipseEnabled: false, triangulationEnabled: true } }),
+    runL03Batch({ seeds, name: "full/eclipse/same-rank", config: { ...shared, majorDeckMode: "full", eclipseEnabled: true, triangulationEnabled: true, triangulationMode: "sameRankMajorSet" } }),
+    runL03Batch({ seeds, name: "full/eclipse/any-three", config: { ...shared, majorDeckMode: "full", eclipseEnabled: true, triangulationEnabled: true, triangulationMode: "anyThreeMajors" } }),
+    runL03Batch({ seeds, name: "scripted/eclipse/same-rank", config: { ...shared, majorDeckMode: "scripted", scriptedMajorIds: L03_COMPARE_SCRIPT, eclipseEnabled: true, triangulationEnabled: true, triangulationMode: "sameRankMajorSet" } }),
     runL03Batch({ seeds, name: "full/no-triangulation", config: { ...shared, majorDeckMode: "full", eclipseEnabled: true, triangulationEnabled: false } }),
   ];
   return { seeds, rows };

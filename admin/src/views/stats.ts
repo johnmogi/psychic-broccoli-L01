@@ -12,7 +12,7 @@ export function StatsPanel(
   head.textContent = "Stats lab";
   const note = document.createElement("p");
   note.className = "zone-hint";
-  note.textContent = "Z02 batch and the four alignment presets. Same seeds across compare.";
+  note.textContent = "Z02 batch and the four alignment presets. Diagnostics use first-pass lab targets.";
 
   const form = document.createElement("form");
   form.className = "settings-fields";
@@ -39,6 +39,9 @@ export function StatsPanel(
   const results = document.createElement("div");
   results.className = "stats-results";
   results.dataset.role = "lab-results";
+  const diagnostics = document.createElement("div");
+  diagnostics.className = "diagnostics";
+  diagnostics.dataset.role = "lab-diagnostics";
 
   batch.addEventListener("click", () => onBatch(readLab(form)));
   compare.addEventListener("click", () => {
@@ -46,7 +49,7 @@ export function StatsPanel(
     onCompare({ runs: settings.runs, seedStart: settings.seedStart, turns: settings.turns });
   });
 
-  el.append(head, note, form, actions, results);
+  el.append(head, note, form, actions, results, diagnostics);
   return el;
 }
 
@@ -70,6 +73,60 @@ export function fillLabResults(root: ParentNode, title: string, rows: { label: s
     }
     host.append(list);
   }
+}
+
+export function fillDiagnostics(
+  root: ParentNode,
+  model: {
+    chips: { status: "healthy" | "watch" | "problem"; text: string }[];
+    lines: string[];
+    extremes: { label: string; best: string; worst: string }[];
+    problems: string[];
+  },
+): void {
+  const host = root.querySelector<HTMLElement>("[data-role='lab-diagnostics']");
+  if (!host) return;
+  host.replaceChildren();
+  if (model.chips.length) {
+    const list = document.createElement("ul");
+    list.className = "diag-list";
+    for (const chip of model.chips) {
+      const item = document.createElement("li");
+      item.className = `diag-chip is-${chip.status}`;
+      item.textContent = chip.text;
+      list.append(item);
+    }
+    host.append(list);
+  }
+  if (model.lines.length) host.append(lineList(model.lines));
+  if (model.extremes.length) {
+    const heading = document.createElement("h3");
+    heading.textContent = "Best / worst";
+    const list = document.createElement("ul");
+    list.className = "diag-lines";
+    for (const item of model.extremes) {
+      const line = document.createElement("li");
+      line.textContent = `${item.label}: best ${item.best}, worst ${item.worst}`;
+      list.append(line);
+    }
+    host.append(heading, list);
+  }
+  if (model.problems.length) {
+    const heading = document.createElement("h3");
+    heading.textContent = "Problem configs";
+    host.append(heading, lineList(model.problems, "is-problem"));
+  }
+}
+
+function lineList(lines: string[], extra = ""): HTMLUListElement {
+  const list = document.createElement("ul");
+  list.className = extra ? `diag-lines ${extra}` : "diag-lines";
+  for (const line of lines) {
+    const item = document.createElement("li");
+    item.textContent = line;
+    list.append(item);
+  }
+  return list;
 }
 
 function readLab(form: HTMLFormElement): LabSettings {

@@ -395,7 +395,21 @@ h2, h3 {
 .stats-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.6rem; }
 .stats-lab { margin-top: 1rem; }
 .stats-results dl { margin: 0.45rem 0 0; }
-.stats-results h3 { margin: 0.4rem 0; font-size: 0.95rem; }
+.stats-results h3, .diagnostics h3 { margin: 0.4rem 0; font-size: 0.95rem; }
+.diag-list, .diag-lines { list-style: none; margin: 0.35rem 0; padding: 0; }
+.diag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.diag-chip {
+  border: 1px solid var(--line);
+  padding: 0.2rem 0.45rem;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+}
+.diag-chip.is-healthy { color: var(--phosphor); border-color: rgba(183, 227, 161, 0.45); }
+.diag-chip.is-watch { color: #e7d7b8; border-color: rgba(231, 215, 184, 0.45); }
+.diag-chip.is-problem { color: var(--ember); border-color: rgba(224, 122, 61, 0.55); }
+.diag-lines { display: grid; gap: 0.2rem; color: var(--muted); font-size: 0.75rem; }
+.diag-lines.is-problem { color: var(--ember); }
 .terminal-prompt {
   display: flex;
   gap: 0.6rem;

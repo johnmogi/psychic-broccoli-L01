@@ -7,13 +7,14 @@ import { consoleFrom, inspectBoard, metricItems, type ConsoleEntry, type MetricI
 import { requestFromValues, settingSpecs } from "../../src/z01/settings.js";
 import { buildTimeline, moveTimeline, type Timeline } from "../../src/z01/timeline.js";
 import { routeCommand, scrollbackText } from "../../src/z01/commands.js";
+import { compareSpread, diagnose, diagnosticSummary, signalsFromL02 } from "../../src/z01/diagnostics.js";
 import { batchRows, labBatch, labCompare, type LabSettings } from "../../src/z01/lab.js";
 import { DEFAULT_LAYER, LAYER_COPY, roundTableHint } from "../../src/z01/layers.js";
 import { EventConsole } from "./views/console.js";
 import { MetricsPanel } from "./views/metrics.js";
 import { PlayerPanel } from "./views/player.js";
 import { SettingsPanel } from "./views/settings.js";
-import { fillLabResults, StatsPanel } from "./views/stats.js";
+import { fillDiagnostics, fillLabResults, StatsPanel } from "./views/stats.js";
 import { TimelineBar } from "./views/timeline.js";
 import { ZoneView } from "./views/zone.js";
 
@@ -165,7 +166,7 @@ function renderFrame(): void {
   banner.className = "banner";
   banner.textContent = `${LAYER_COPY[timeline.layer].code} · seed ${timeline.seed}`;
   const kept = boardHost.scrollTop;
-  timelineHost.replaceChildren(TimelineBar(frame, timeline.frames.length, (action) => {
+  timelineHost.replaceChildren(TimelineBar(frame, timeline.frames.length, timeline.turnCount, (action) => {
     if (!timeline) return;
     index = moveTimeline(index, timeline.frames.length, action);
     renderFrame();
@@ -239,8 +240,20 @@ function executeBatch(settings: LabSettings): void {
     return;
   }
   const stats = labBatch(settings);
+  const findings = diagnose(signalsFromL02(stats));
+  const lines = diagnosticSummary(findings);
   fillLabResults(labHost, "Batch", [batchRows(stats)]);
+  fillDiagnostics(labHost, {
+    chips: findings.map((finding) => ({
+      status: finding.status,
+      text: `${finding.status[0]!.toUpperCase()}${finding.status.slice(1)} · ${finding.label}`,
+    })),
+    lines,
+    extremes: [],
+    problems: [],
+  });
   addNote("stats", "BATCH", batchRows(stats).map((row) => `${row.label} ${row.value}`).join(" · "));
+  for (const line of lines) addNote("stats", "DIAG", line);
   status.textContent = "";
 }
 
@@ -260,10 +273,25 @@ function executeCompare(settings: Pick<LabSettings, "runs" | "seedStart" | "turn
     { label: "Average veil", value: row.averageVeil.toFixed(2) },
     { label: "Average altar overflow", value: row.averageOverflows.toFixed(2) },
   ]);
+  const spread = compareSpread(compared.rows.map((row) => ({ name: row.name, signals: signalsFromL02(row) })));
   fillLabResults(labHost, "Four-way compare", groups);
+  fillDiagnostics(labHost, {
+    chips: [],
+    lines: [],
+    extremes: spread.extremes.map((item) => ({
+      label: item.label,
+      best: `${item.bestName} ${item.bestValue}`,
+      worst: `${item.worstName} ${item.worstValue}`,
+    })),
+    problems: spread.problemLines,
+  });
   for (const row of compared.rows) {
     addNote("stats", "COMPARE", `${row.name} rank6 ${batchRows(row).find((item) => item.label === "Rank 6")?.value} avg ${row.averageFinalRank.toFixed(2)} water ${row.averageWater.toFixed(2)} air ${row.averageAir.toFixed(2)} veil ${row.averageVeil.toFixed(2)}`);
   }
+  for (const item of spread.extremes) {
+    addNote("stats", "DIAG", `${item.label}: best ${item.bestName} ${item.bestValue}, worst ${item.worstName} ${item.worstValue}.`);
+  }
+  for (const line of spread.problemLines) addNote("stats", "DIAG", line);
   status.textContent = "";
 }
 

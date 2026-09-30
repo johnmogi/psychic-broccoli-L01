@@ -1,8 +1,9 @@
-import type { TimelineFrame } from "../../../src/z01/timeline.js";
+import { timelinePositionLabel, type TimelineFrame } from "../../../src/z01/timeline.js";
 
 export function TimelineBar(
   frame: TimelineFrame,
   total: number,
+  turnCount: number,
   onMove: (action: "start" | "back" | "next" | "end") => void,
 ): HTMLElement {
   const el = document.createElement("section");
@@ -27,9 +28,7 @@ export function TimelineBar(
 
   const position = document.createElement("p");
   position.className = "timeline-position";
-  const turn = frame.turn === null ? "—" : `turn ${frame.turn}`;
-  const player = frame.playerId ?? "—";
-  position.textContent = `${frame.index + 1} / ${total} · ${frame.eventType} · ${turn} · ${player}`;
+  position.textContent = timelinePositionLabel(frame, total, turnCount);
 
   const summary = document.createElement("p");
   summary.className = "timeline-summary";

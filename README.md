@@ -139,6 +139,7 @@ From the page:
 - copy the terminal scrollback or the structured events JSON
 - run a Z02 batch
 - run the four-way compare on one seed list
+- read healthy / watch / problem diagnostics for that batch or compare
 - type `help`, `run`, `batch`, `compare`, `copy logs`, `copy events`, or `clear` at the `nexus>` prompt
 
 Those commands only call the same actions as the buttons.

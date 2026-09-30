@@ -75,6 +75,7 @@ describe("Z01 timeline", () => {
 
     const { result, frames } = captureFrames(() => playL02("42", { turnCount: 6 }));
     const timeline = buildTimeline("L02", result.seed, result.events, frames);
+    expect(timeline.turnCount).toBe(6);
     const evolved = timeline.frames.find((frame) => frame.eventType === "EVOLUTION");
     const collected = timeline.frames.find((frame) => frame.eventType === "COLLECT");
     const altar = timeline.frames.find((frame) => frame.eventType === "TO_ALTAR");

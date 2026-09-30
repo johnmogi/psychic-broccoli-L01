@@ -23,6 +23,7 @@ export interface TimelineFrame {
 export interface Timeline {
   layer: "L01" | "L02";
   seed: string;
+  turnCount: number;
   frames: TimelineFrame[];
 }
 
@@ -38,9 +39,11 @@ export function buildTimeline(
     throw new Error(`Timeline has ${frames.length} snapshots for ${events.length} events`);
   }
   const lines = consoleFrom(events);
+  const setup = events.find((event) => event.type === "SETUP") as { turnCount?: unknown } | undefined;
   return {
     layer,
     seed,
+    turnCount: typeof setup?.turnCount === "number" ? setup.turnCount : 0,
     frames: events.map((event, index) => {
       const loose = event as LooseEvent;
       return {
@@ -55,6 +58,18 @@ export function buildTimeline(
     };
     }),
   };
+}
+
+export function timelinePositionLabel(
+  frame: Pick<TimelineFrame, "index" | "turn" | "eventType" | "playerId">,
+  eventTotal: number,
+  turnCount: number,
+): string {
+  const shownTurn = frame.turn ?? (frame.eventType === "COMPLETE" ? turnCount : null);
+  const turnText = shownTurn === null || turnCount <= 0 ? "—" : String(shownTurn);
+  const planned = turnCount > 0 ? String(turnCount) : "—";
+  const player = frame.playerId ?? "—";
+  return `Turn ${turnText} / ${planned} · Event ${frame.index + 1} / ${eventTotal} · ${frame.eventType} · ${player}`;
 }
 
 export function moveTimeline(index: number, total: number, action: "start" | "back" | "next" | "end"): number {

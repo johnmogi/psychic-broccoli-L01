@@ -3,9 +3,10 @@ import { CardView } from "./card.js";
 
 export function ZoneView(zone: ZoneModel): HTMLElement {
   const el = document.createElement("section");
-  el.className = "zone";
+  el.className = zone.highlighted ? "zone is-highlight" : "zone";
   el.dataset.component = "ZoneView";
   el.dataset.zone = zone.id;
+  if (zone.highlighted) el.dataset.highlight = "true";
 
   const head = document.createElement("header");
   const title = document.createElement("h3");

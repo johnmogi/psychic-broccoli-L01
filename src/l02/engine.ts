@@ -6,6 +6,7 @@ import { chooseVeilEffect } from "./bot.js";
 import { resolveL02Config, type L02Config } from "./config.js";
 import { snap, type L02Event } from "./events.js";
 import { activePlayer, type L02State } from "./state.js";
+import { noteBoard } from "../z01/capture.js";
 
 export function playL02(seed: string, partial: Partial<L02Config> = {}): L02State {
   const config = resolveL02Config(partial);
@@ -13,7 +14,7 @@ export function playL02(seed: string, partial: Partial<L02Config> = {}): L02Stat
   let state = setup(seed, config);
   while (state.completedTurns < config.turnCount) state = resolveTurn(state);
   state.status = "completed";
-  state.events.push({ type: "COMPLETE", completedTurns: state.completedTurns });
+  emit(state, { type: "COMPLETE", completedTurns: state.completedTurns });
   return state;
 }
 
@@ -21,7 +22,7 @@ export function resolveTurn(state: L02State): L02State {
   const next = structuredClone(state) as L02State;
   const turn = next.completedTurns + 1;
   const player = activePlayer(next);
-  next.events.push({ type: "TURN_START", turn, playerId: player.id });
+  emit(next, { type: "TURN_START", turn, playerId: player.id });
   refill(next, turn);
   collectLeftmost(next, turn, player);
   const evolved = evolveFromHand(next, turn, player);
@@ -32,7 +33,7 @@ export function resolveTurn(state: L02State): L02State {
   }
   sweepTable(next, turn);
   for (const seated of next.players) {
-    next.events.push({ type: "HAND_SNAPSHOT", turn, playerId: seated.id, size: seated.hand.length });
+    emit(next, { type: "HAND_SNAPSHOT", turn, playerId: seated.id, size: seated.hand.length });
   }
   next.completedTurns = turn;
   next.activePlayerIndex = next.activePlayerIndex === 0 ? 1 : 0;
@@ -50,9 +51,9 @@ export function applyWaterResurface(state: L02State, player: PlayerState, turn =
   const spent = player.hand.splice(handIndex, 1)[0];
   if (!spent) throw new Error("Water card disappeared");
   state.veil.push(spent);
-  state.events.push({ type: "WATER_SPEND", turn, playerId: player.id, card: snap(spent) });
-  state.events.push({ type: "TO_VEIL", turn, card: snap(spent), reason: "spend" });
-  state.events.push({ type: "RESURFACE", turn, card: snap(recovered) });
+  emit(state, { type: "WATER_SPEND", turn, playerId: player.id, card: snap(spent) });
+  emit(state, { type: "TO_VEIL", turn, card: snap(spent), reason: "spend" });
+  emit(state, { type: "RESURFACE", turn, card: snap(recovered) });
   pushAltar(state, turn, recovered, "resurface");
 }
 
@@ -71,10 +72,10 @@ export function applyAirSwap(state: L02State, player: PlayerState, turn = state.
   const spent = player.hand.splice(handIndex, 1)[0];
   if (!spent) throw new Error("Air card disappeared");
   state.veil.push(spent);
-  state.events.push({ type: "AIR_SPEND", turn, playerId: player.id, card: snap(spent) });
-  state.events.push({ type: "TO_VEIL", turn, card: snap(fromTable), reason: "swap-out" });
-  state.events.push({ type: "TO_VEIL", turn, card: snap(spent), reason: "spend" });
-  state.events.push({ type: "SWAP", turn, slot, fromVeil: snap(fromVeil), fromTable: snap(fromTable) });
+  emit(state, { type: "AIR_SPEND", turn, playerId: player.id, card: snap(spent) });
+  emit(state, { type: "TO_VEIL", turn, card: snap(fromTable), reason: "swap-out" });
+  emit(state, { type: "TO_VEIL", turn, card: snap(spent), reason: "spend" });
+  emit(state, { type: "SWAP", turn, slot, fromVeil: snap(fromVeil), fromTable: snap(fromTable) });
 }
 
 function setup(seed: string, config: L02Config): L02State {
@@ -105,7 +106,7 @@ function setup(seed: string, config: L02Config): L02State {
       deckCount: shuffled.length,
     },
   ];
-  return {
+  const state: L02State = {
     seed,
     config,
     status: "running",
@@ -118,6 +119,8 @@ function setup(seed: string, config: L02Config): L02State {
     veil: [],
     events,
   };
+  noteBoard(state);
+  return state;
 }
 
 function refill(state: L02State, turn: number): void {
@@ -133,8 +136,8 @@ function refill(state: L02State, turn: number): void {
     state.roundTable[index] = card;
     filled.push({ index, card });
   }
-  if (filled.length) state.events.push({ type: "REFILL", turn, slots: filled.map((slot) => ({ index: slot.index, card: snap(slot.card) })) });
-  if (emptySlots.length) state.events.push({ type: "DECK_EXHAUSTED", turn, emptySlots });
+  if (filled.length) emit(state, { type: "REFILL", turn, slots: filled.map((slot) => ({ index: slot.index, card: snap(slot.card) })) });
+  if (emptySlots.length) emit(state, { type: "DECK_EXHAUSTED", turn, emptySlots });
 }
 
 function collectLeftmost(state: L02State, turn: number, player: PlayerState): void {
@@ -145,7 +148,7 @@ function collectLeftmost(state: L02State, turn: number, player: PlayerState): vo
   if (state.config.handLimit !== "unlimited" && player.hand.length >= state.config.handLimit) return;
   state.roundTable[slot] = null;
   player.hand.push(card);
-  state.events.push({ type: "COLLECT", turn, playerId: player.id, card: snap(card) });
+  emit(state, { type: "COLLECT", turn, playerId: player.id, card: snap(card) });
 }
 
 function evolveFromHand(state: L02State, turn: number, player: PlayerState): boolean {
@@ -158,7 +161,7 @@ function evolveFromHand(state: L02State, turn: number, player: PlayerState): boo
     if (!card) return evolved;
     player.lineage.push(card);
     evolved = true;
-    state.events.push({
+    emit(state, {
       type: "EVOLUTION",
       turn,
       playerId: player.id,
@@ -184,10 +187,10 @@ function pushAltar(state: L02State, turn: number, card: MinorCard, reason: "unco
   while (state.altar.minors.length >= state.config.altarCapacity) {
     const overflow = takeOverflow(state);
     state.veil.push(overflow);
-    state.events.push({ type: "TO_VEIL", turn, card: snap(overflow), reason: "altar-overflow" });
+    emit(state, { type: "TO_VEIL", turn, card: snap(overflow), reason: "altar-overflow" });
   }
   state.altar.minors.push(card);
-  state.events.push({ type: "TO_ALTAR", turn, card: snap(card), reason });
+  emit(state, { type: "TO_ALTAR", turn, card: snap(card), reason });
 }
 
 function takeOverflow(state: L02State): MinorCard {
@@ -209,6 +212,11 @@ function effectCount(state: L02State, turn: number): number {
   return state.events.filter(
     (event) => (event.type === "WATER_SPEND" || event.type === "AIR_SPEND") && event.turn === turn,
   ).length;
+}
+
+function emit(state: L02State, event: L02Event): void {
+  state.events.push(event);
+  noteBoard(state);
 }
 
 function leftmostIndex(table: L02State["roundTable"]): number {

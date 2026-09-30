@@ -5,7 +5,11 @@ import type { ConsoleEntry } from "../../../src/z01/inspect.js";
  * admin log, advisor text, or story prose from the same stream.
  * There is no command input and no parser.
  */
-export function EventConsole(entries: readonly ConsoleEntry[]): HTMLElement {
+export function EventConsole(
+  entries: readonly ConsoleEntry[],
+  selectedIndex = -1,
+  onSelect?: (index: number) => void,
+): HTMLElement {
   const el = document.createElement("section");
   el.className = "terminal";
   el.dataset.component = "EventConsole";
@@ -25,6 +29,17 @@ export function EventConsole(entries: readonly ConsoleEntry[]): HTMLElement {
     line.dataset.eventType = entry.eventType;
     line.dataset.channel = entry.channel;
     line.dataset.role = entry.role;
+    line.dataset.index = String(entry.index);
+    line.tabIndex = 0;
+    if (entry.index === selectedIndex) line.dataset.selected = "true";
+    const choose = () => onSelect?.(entry.index);
+    line.addEventListener("click", choose);
+    line.addEventListener("keydown", (keyEvent) => {
+      if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+        keyEvent.preventDefault();
+        choose();
+      }
+    });
 
     const index = document.createElement("span");
     index.className = "term-index";

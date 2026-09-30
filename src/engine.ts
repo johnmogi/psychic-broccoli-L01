@@ -5,6 +5,7 @@ import { canContinue, nextEvolution } from "./bot.js";
 import { snap, type GameEvent } from "./events.js";
 import { shuffle } from "./rng.js";
 import { topCard, type GameState, type PlayerState } from "./state.js";
+import { noteBoard } from "./z01/capture.js";
 
 export function playGame(seed: string, partial: Partial<L01Config> = {}): GameState {
   const config = resolveConfig(partial);
@@ -16,7 +17,7 @@ export function completeRun(state: GameState): GameState {
   let current = state;
   while (current.completedTurns < current.config.turnCount) current = resolveTurn(current);
   current.status = "completed";
-  current.events.push({ type: "COMPLETE", completedTurns: current.completedTurns });
+  emit(current, { type: "COMPLETE", completedTurns: current.completedTurns });
   return current;
 }
 
@@ -24,7 +25,7 @@ export function resolveTurn(state: GameState): GameState {
   const next = structuredClone(state) as GameState;
   const turn = next.completedTurns + 1;
   const player = next.players[next.activePlayerIndex]!;
-  next.events.push({ type: "TURN_START", turn, playerId: player.id });
+  emit(next, { type: "TURN_START", turn, playerId: player.id });
 
   if (next.pendingCardId) {
     const slot = next.roundTable.findIndex((card) => card?.id === next.pendingCardId);
@@ -50,7 +51,7 @@ export function resolveTurn(state: GameState): GameState {
   if (encounterId && next.roundTable.some((card) => card?.id === encounterId)) {
     const card = next.roundTable.find((entry) => entry?.id === encounterId)!;
     next.pendingCardId = encounterId;
-    next.events.push({ type: "PENDING_ENCOUNTER", turn, card: snap(card) });
+    emit(next, { type: "PENDING_ENCOUNTER", turn, card: snap(card) });
   }
 
   next.completedTurns = turn;
@@ -91,7 +92,7 @@ function setup(seed: string, config: L01Config): GameState {
       deckCount: shuffled.length,
     },
   ];
-  return {
+  const state: GameState = {
     seed,
     config,
     status: "running",
@@ -105,6 +106,8 @@ function setup(seed: string, config: L01Config): GameState {
     veil: [],
     events,
   };
+  noteBoard(state);
+  return state;
 }
 
 function takeAce(pool: MinorCard[], element: Element): MinorCard {
@@ -114,14 +117,14 @@ function takeAce(pool: MinorCard[], element: Element): MinorCard {
 }
 
 function sendToAltar(state: GameState, turn: number, card: MinorCard): void {
-  state.events.push({ type: "TO_ALTAR", turn, card: snap(card), reason: "unused-encounter" });
-  if (state.altar.minors.length >= ALTAR_MINOR_CAPACITY) {
+  state.altar.minors.push(card);
+  emit(state, { type: "TO_ALTAR", turn, card: snap(card), reason: "unused-encounter" });
+  if (state.altar.minors.length > ALTAR_MINOR_CAPACITY) {
     const oldest = state.altar.minors.shift();
     if (!oldest) throw new Error("Altar overflow found no minor");
     state.veil.push(oldest);
-    state.events.push({ type: "TO_VEIL", turn, card: snap(oldest), reason: "altar-overflow" });
+    emit(state, { type: "TO_VEIL", turn, card: snap(oldest), reason: "altar-overflow" });
   }
-  state.altar.minors.push(card);
 }
 
 function refill(state: GameState, turn: number): void {
@@ -138,9 +141,9 @@ function refill(state: GameState, turn: number): void {
     filled.push({ index, card });
   }
   if (filled.length) {
-    state.events.push({ type: "REFILL", turn, slots: filled.map((slot) => ({ index: slot.index, card: snap(slot.card) })) });
+    emit(state, { type: "REFILL", turn, slots: filled.map((slot) => ({ index: slot.index, card: snap(slot.card) })) });
   }
-  if (emptySlots.length) state.events.push({ type: "DECK_EXHAUSTED", turn, emptySlots });
+  if (emptySlots.length) emit(state, { type: "DECK_EXHAUSTED", turn, emptySlots });
 }
 
 function evolve(state: GameState, turn: number, player: PlayerState, pick: { card: MinorCard; source: "encounter" | "hand" }): void {
@@ -155,7 +158,7 @@ function evolve(state: GameState, turn: number, player: PlayerState, pick: { car
     player.hand.splice(index, 1);
   }
   player.lineage.push(pick.card);
-  state.events.push({
+  emit(state, {
     type: "EVOLUTION",
     turn,
     playerId: player.id,
@@ -169,4 +172,9 @@ function evolve(state: GameState, turn: number, player: PlayerState, pick: { car
 
 function leftmost(table: GameState["roundTable"]): MinorCard | null {
   return table.find((card) => card !== null) ?? null;
+}
+
+function emit(state: GameState, event: GameEvent): void {
+  state.events.push(event);
+  noteBoard(state);
 }

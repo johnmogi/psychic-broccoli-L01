@@ -1,11 +1,16 @@
 import { playGame } from "../../src/engine.js";
 import { playL02 } from "../../src/l02/engine.js";
-import { inspectL01, inspectL02, type Inspection } from "../../src/z01/inspect.js";
+import { metricsFromEvents } from "../../src/metrics.js";
+import { l02MetricsFromEvents } from "../../src/l02/metrics.js";
+import { captureFrames } from "../../src/z01/capture.js";
+import { consoleFrom, inspectBoard, metricItems, type ConsoleEntry, type MetricItem } from "../../src/z01/inspect.js";
 import { requestFromValues, settingSpecs } from "../../src/z01/settings.js";
+import { buildTimeline, moveTimeline, type Timeline } from "../../src/z01/timeline.js";
 import { EventConsole } from "./views/console.js";
 import { MetricsPanel } from "./views/metrics.js";
 import { PlayerPanel } from "./views/player.js";
 import { SettingsPanel } from "./views/settings.js";
+import { TimelineBar } from "./views/timeline.js";
 import { ZoneView } from "./views/zone.js";
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -47,6 +52,11 @@ const status = document.createElement("p");
 status.className = "status";
 rail.append(status);
 
+let timeline: Timeline | null = null;
+let index = 0;
+let metrics: MetricItem[] = [];
+let entries: ConsoleEntry[] = [];
+
 mountSettings();
 run({
   seed: "42",
@@ -69,11 +79,15 @@ function run(values: Record<string, string>): void {
   const request = requestFromValues(layer, values);
   status.textContent = "";
   try {
-    const view = request.layer === "L01"
-      ? inspectL01(playGame(request.seed, request.l01))
-      : inspectL02(playL02(request.seed, request.l02));
-    render(view);
+    if (request.layer === "L01") {
+      const captured = captureFrames(() => playGame(request.seed, request.l01));
+      show(request.layer, captured.result.seed, captured.result.events, captured.frames, metricItems(metricsFromEvents(captured.result.events)));
+    } else {
+      const captured = captureFrames(() => playL02(request.seed, request.l02));
+      show(request.layer, captured.result.seed, captured.result.events, captured.frames, metricItems(l02MetricsFromEvents(captured.result.events)));
+    }
   } catch (error) {
+    timeline = null;
     const message = error instanceof Error ? error.message : String(error);
     status.textContent = message;
     dock.replaceChildren(EventConsole([{
@@ -87,7 +101,25 @@ function run(values: Record<string, string>): void {
   }
 }
 
-function render(view: Inspection): void {
+function show(
+  layerName: "L01" | "L02",
+  seed: string,
+  events: readonly { type: string }[],
+  frames: Timeline["frames"][number]["board"][],
+  nextMetrics: MetricItem[],
+): void {
+  timeline = buildTimeline(layerName, seed, events, frames);
+  index = Math.max(0, timeline.frames.length - 1);
+  metrics = nextMetrics;
+  entries = consoleFrom(events);
+  renderFrame();
+}
+
+function renderFrame(): void {
+  if (!timeline) return;
+  const frame = timeline.frames[index];
+  if (!frame) return;
+  const view = inspectBoard(timeline.layer, frame.board, frame.highlight);
   const players = document.createElement("div");
   players.className = "players";
   for (const player of view.players) players.append(PlayerPanel(player));
@@ -100,10 +132,23 @@ function render(view: Inspection): void {
   board.className = "board";
   const banner = document.createElement("p");
   banner.className = "banner";
-  banner.textContent = `${view.layer} · seed ${view.seed}`;
-  board.append(banner, players, zones, MetricsPanel(view.metrics));
+  banner.textContent = `${timeline.layer} · seed ${timeline.seed}`;
+  board.append(
+    TimelineBar(frame, timeline.frames.length, (action) => {
+      if (!timeline) return;
+      index = moveTimeline(index, timeline.frames.length, action);
+      renderFrame();
+    }),
+    banner,
+    players,
+    zones,
+    MetricsPanel(metrics, frame.highlight.zones.includes("metrics")),
+  );
   stage.replaceChildren(board);
-  dock.replaceChildren(EventConsole(view.console));
-  const scroll = dock.querySelector(".scrollback");
-  if (scroll) scroll.scrollTop = scroll.scrollHeight;
+  dock.replaceChildren(EventConsole(entries, index, (next) => {
+    index = next;
+    renderFrame();
+  }));
+  const row = dock.querySelector<HTMLElement>("[data-selected='true']");
+  row?.scrollIntoView({ block: "nearest" });
 }

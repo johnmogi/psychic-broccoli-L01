@@ -12,6 +12,7 @@
     "l02:batch": "tsx src/cli.ts l02 batch",
     "l02:compare": "tsx src/cli.ts l02 compare",
     "z01": "vite --config admin/vite.config.ts",
+    "build": "vite build --config admin/vite.config.ts",
     "test": "vitest run",
     "check": "tsc --noEmit && tsc --noEmit -p admin && vitest run"
   },

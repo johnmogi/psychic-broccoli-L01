@@ -1,9 +1,10 @@
 import type { MetricItem } from "../../../src/z01/inspect.js";
 
-export function MetricsPanel(items: readonly MetricItem[]): HTMLElement {
+export function MetricsPanel(items: readonly MetricItem[], highlighted = false): HTMLElement {
   const el = document.createElement("section");
-  el.className = "metrics";
+  el.className = highlighted ? "metrics is-highlight" : "metrics";
   el.dataset.component = "MetricsPanel";
+  if (highlighted) el.dataset.highlight = "true";
 
   const head = document.createElement("h2");
   head.textContent = "Metrics";

@@ -84,8 +84,8 @@ export function futureSlots(signals: DiagnosticSignals): LabMeter[] {
   });
 }
 
-export function presentBatch(stats: L02BatchStats): LabPresentation {
-  const signals = signalsFromL02(stats);
+export function presentBatch(stats: L02BatchStats, extra: DiagnosticSignals = {}): LabPresentation {
+  const signals = { ...signalsFromL02(stats), ...extra };
   return {
     kind: "batch",
     findings: orderedDiagnosticLines(diagnose(signals)),

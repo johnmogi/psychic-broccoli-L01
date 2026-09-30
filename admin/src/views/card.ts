@@ -23,7 +23,7 @@ export function CardView(card: CardFace): HTMLElement {
 
   const element = document.createElement("span");
   element.className = "card-element";
-  element.textContent = card.element;
+  element.textContent = card.mark ? `${card.mark} ${card.element}` : card.element;
 
   el.append(rank, element);
   return el;

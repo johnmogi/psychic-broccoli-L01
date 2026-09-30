@@ -1,5 +1,6 @@
 import { L01_DEFAULTS, type L01Config } from "../config.js";
 import { L02_DEFAULTS, type L02Config } from "../l02/config.js";
+import { L03_DEFAULTS, type L03Config } from "../l03/config.js";
 
 export type SettingControl = "text" | "number" | "select" | "checkbox";
 
@@ -14,14 +15,15 @@ export interface SettingSpec {
 }
 
 export interface RunRequest {
-  layer: "L01" | "L02";
+  layer: "L01" | "L02" | "L03";
   seed: string;
   l01: Partial<L01Config>;
   l02: Partial<L02Config>;
+  l03: Partial<L03Config>;
 }
 
 /** Form fields are engine config keys. Adding a layer means adding specs, not a new form. */
-export function settingSpecs(layer: "L01" | "L02", seed = "42"): SettingSpec[] {
+export function settingSpecs(layer: "L01" | "L02" | "L03", seed = "42"): SettingSpec[] {
   const shared: SettingSpec[] = [
     { id: "seed", label: "Seed", control: "text", value: seed },
     {
@@ -58,6 +60,37 @@ export function settingSpecs(layer: "L01" | "L02", seed = "42"): SettingSpec[] {
       },
     ];
   }
+  if (layer === "L03") {
+    return [
+      ...shared,
+      { id: "turnCount", label: "Turns", control: "number", value: String(L03_DEFAULTS.turnCount) },
+      { id: "waterResurfaceEnabled", label: "Water resurface", control: "checkbox", value: "true" },
+      { id: "airSwapEnabled", label: "Air swap", control: "checkbox", value: "true" },
+      { id: "eclipseEnabled", label: "Eclipse", control: "checkbox", value: "true" },
+      { id: "triangulationEnabled", label: "Triangulation", control: "checkbox", value: "true" },
+      {
+        id: "majorDeckMode",
+        label: "Major deck",
+        control: "select",
+        value: L03_DEFAULTS.majorDeckMode,
+        options: [
+          { value: "full", label: "full catalog" },
+          { value: "scripted", label: "scripted prefix" },
+        ],
+      },
+      {
+        id: "majorOverflowMode",
+        label: "Major overflow",
+        control: "select",
+        value: L03_DEFAULTS.majorOverflowMode,
+        options: [
+          { value: "newestStays", label: "newestStays" },
+          { value: "activeChoice", label: "activeChoice" },
+        ],
+        note: "activeChoice is an engine hook and still rejects",
+      },
+    ];
+  }
   return [
     ...shared,
     { id: "turnCount", label: "Turns", control: "number", value: String(L02_DEFAULTS.turnCount) },
@@ -77,7 +110,7 @@ export function settingSpecs(layer: "L01" | "L02", seed = "42"): SettingSpec[] {
   ];
 }
 
-export function requestFromValues(layer: "L01" | "L02", values: Record<string, string>): RunRequest {
+export function requestFromValues(layer: "L01" | "L02" | "L03", values: Record<string, string>): RunRequest {
   const maxJump = values["maxJump"] === "1" ? 1 : 2;
   const alignmentRule = values["alignmentRule"] === "sameElement" ? "sameElement" : "sameColor";
   const turnCount = Number(values["turnCount"]);
@@ -98,6 +131,18 @@ export function requestFromValues(layer: "L01" | "L02", values: Record<string, s
       waterResurfaceEnabled: values["waterResurfaceEnabled"] !== "false",
       airSwapEnabled: values["airSwapEnabled"] !== "false",
       altarOverflowMode: values["altarOverflowMode"] === "activeChoice" ? "activeChoice" : "oldest",
+    },
+    l03: {
+      turnCount,
+      alignmentRule,
+      maxJump,
+      waterResurfaceEnabled: values["waterResurfaceEnabled"] !== "false",
+      airSwapEnabled: values["airSwapEnabled"] !== "false",
+      eclipseEnabled: values["eclipseEnabled"] !== "false",
+      triangulationEnabled: values["triangulationEnabled"] !== "false",
+      majorDeckMode: values["majorDeckMode"] === "scripted" ? "scripted" : "full",
+      majorOverflowMode: values["majorOverflowMode"] === "activeChoice" ? "activeChoice" : "newestStays",
+      scriptedMajorIds: values["majorDeckMode"] === "scripted" ? ["major-sun-air-queen", "major-moon-fire-queen", "major-sun-earth-king"] : [],
     },
   };
 }

@@ -10,7 +10,7 @@ describe("deck", () => {
     expect(database.filter((card) => card.arcana === "minor").map((card) => card.rank)).toEqual(
       expect.arrayContaining([1, 2, 3, 4, 5, 6, 7, 8, 9]),
     );
-    expect(database.filter((card) => card.arcana === "major")).toHaveLength(12);
+    expect(database.filter((card) => card.arcana === "major")).toHaveLength(24);
     expect(createL01Pool().every((card) => card.arcana === "minor" && card.rank <= 6)).toBe(true);
   });
 

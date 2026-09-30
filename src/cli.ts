@@ -11,10 +11,16 @@ import { resolveL02Config, type L02Config } from "./l02/config.js";
 import { playL02 } from "./l02/engine.js";
 import { formatL02Log } from "./l02/events.js";
 import { formatL02Batch, formatL02Metrics, l02MetricsFromEvents } from "./l02/metrics.js";
+import { compareL03, formatL03Compare, runL03Batch } from "./l03/compare.js";
+import { resolveL03Config, type L03Config } from "./l03/config.js";
+import { playL03 } from "./l03/engine.js";
+import { formatL03Log } from "./l03/events.js";
+import { formatL03Batch, formatL03Metrics, l03MetricsFromEvents } from "./l03/metrics.js";
 
 export function main(argv: readonly string[]): string {
   const parsed = parseArgs(argv);
   if (parsed.command === "l02") return runL02Command(parsed.positionals.slice(1), parsed.options);
+  if (parsed.command === "l03") return runL03Command(parsed.positionals.slice(1), parsed.options);
   const { command, options } = parsed;
   if (command === "batch") return formatBatch(runBatch(batchRequest(options)));
   if (command === "compare") return formatCompare(compareConfigs(compareRequest(options)).rows);
@@ -25,6 +31,41 @@ export function main(argv: readonly string[]): string {
     return `${formatLog(state.events)}\n\n${formatMetrics(metricsFromEvents(state.events))}`;
   }
   throw new Error(`Unknown command ${command}. Use run, batch, compare, or tune.`);
+}
+
+function runL03Command(rest: readonly string[], options: Record<string, string>): string {
+  const sub = rest[0] ?? "run";
+  const config = l03Options(options);
+  if (sub === "batch") {
+    return formatL03Batch(runL03Batch({
+      seeds: seedList(integer(required(options, "seed-start"), "seed-start"), integer(required(options, "runs"), "runs")),
+      config,
+    }));
+  }
+  if (sub === "compare") {
+    return formatL03Compare(compareL03({
+      runs: integer(required(options, "runs"), "runs"),
+      seedStart: integer(required(options, "seed-start"), "seed-start"),
+      turnCount: config.turnCount ?? resolveL03Config().turnCount,
+    }).rows);
+  }
+  if (sub === "run") {
+    const state = playL03(required(options, "seed"), config);
+    const metrics = l03MetricsFromEvents(state.events, state.pd ? 1 : 0, state.altar.major?.name ?? "");
+    return `${formatL03Log(state.events)}\n\n${formatL03Metrics(metrics)}`;
+  }
+  throw new Error("Unknown l03 command. Use run, batch, or compare.");
+}
+
+function l03Options(options: Record<string, string>): Partial<L03Config> {
+  const partial: Partial<L03Config> = {};
+  if (options["turns"]) partial.turnCount = integer(options["turns"], "turns");
+  if (options["alignment"]) partial.alignmentRule = alignment(options["alignment"]);
+  if (options["max-jump"]) partial.maxJump = jump(options["max-jump"]);
+  if (options["major-deck"]) partial.majorDeckMode = options["major-deck"] === "scripted" ? "scripted" : "full";
+  if (options["eclipse"] === "off") partial.eclipseEnabled = false;
+  if (options["triangulation"] === "off") partial.triangulationEnabled = false;
+  return partial;
 }
 
 function runL02Command(rest: readonly string[], options: Record<string, string>): string {

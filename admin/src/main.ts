@@ -1,6 +1,9 @@
 import { playGame } from "../../src/engine.js";
 import { playL02 } from "../../src/l02/engine.js";
-import { metricsFromEvents } from "../../src/metrics.js";
+import { playL03 } from "../../src/l03/engine.js";
+import { l03MetricsFromEvents } from "../../src/l03/metrics.js";
+import { compareL03, runL03Batch } from "../../src/l03/compare.js";
+import { metricsFromEvents, percent } from "../../src/metrics.js";
 import { l02MetricsFromEvents } from "../../src/l02/metrics.js";
 import { captureFrames } from "../../src/z01/capture.js";
 import { consoleFrom, inspectBoard, metricItems, type ConsoleEntry, type MetricItem } from "../../src/z01/inspect.js";
@@ -10,6 +13,7 @@ import { routeCommand, scrollbackText } from "../../src/z01/commands.js";
 import { compareSpread, diagnose, diagnosticSummary, signalsFromL02 } from "../../src/z01/diagnostics.js";
 import { batchRows, labBatch, labCompare, type LabSettings } from "../../src/z01/lab.js";
 import { presentBatch, presentCompare } from "../../src/z01/present.js";
+import { seedList } from "../../src/rng.js";
 import { DEFAULT_LAYER, LAYER_COPY, roundTableHint } from "../../src/z01/layers.js";
 import { EventConsole } from "./views/console.js";
 import { MetricsPanel } from "./views/metrics.js";
@@ -22,7 +26,7 @@ import { ZoneView } from "./views/zone.js";
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("Missing #app");
 
-let layer: "L01" | "L02" = DEFAULT_LAYER;
+let layer: "L01" | "L02" | "L03" = DEFAULT_LAYER;
 
 const shell = document.createElement("div");
 shell.className = "shell";
@@ -59,7 +63,7 @@ app.append(shell);
 const layerSwitch = document.createElement("div");
 layerSwitch.className = "layer-switch";
 layerSwitch.dataset.component = "LayerSwitch";
-for (const name of ["L02", "L01"] as const) {
+for (const name of ["L02", "L03", "L01"] as const) {
   const button = document.createElement("button");
   button.type = "button";
   const code = document.createElement("span");
@@ -127,6 +131,10 @@ function run(values: Record<string, string>): void {
     if (request.layer === "L01") {
       const captured = captureFrames(() => playGame(request.seed, request.l01));
       show(request.layer, captured.result.seed, captured.result.events, captured.frames, metricItems(metricsFromEvents(captured.result.events)));
+    } else if (request.layer === "L03") {
+      const captured = captureFrames(() => playL03(request.seed, request.l03));
+      const metrics = l03MetricsFromEvents(captured.result.events, captured.result.pd ? 1 : 0, captured.result.altar.major?.name ?? "");
+      show(request.layer, captured.result.seed, captured.result.events, captured.frames, metricItems(metrics));
     } else {
       const captured = captureFrames(() => playL02(request.seed, request.l02));
       show(request.layer, captured.result.seed, captured.result.events, captured.frames, metricItems(l02MetricsFromEvents(captured.result.events)));
@@ -148,7 +156,7 @@ function run(values: Record<string, string>): void {
 }
 
 function show(
-  layerName: "L01" | "L02",
+  layerName: "L01" | "L02" | "L03",
   seed: string,
   events: readonly { type: string }[],
   frames: Timeline["frames"][number]["board"][],
@@ -253,6 +261,31 @@ function addNote(channel: "system" | "stats", eventType: string, text: string): 
 }
 
 function executeBatch(settings: LabSettings): void {
+  if (layer === "L03") {
+    const stats = runL03Batch({
+      seeds: seedList(settings.seedStart, settings.runs),
+      config: {
+        turnCount: settings.turns,
+        alignmentRule: settings.alignmentRule,
+        maxJump: settings.maxJump,
+        waterResurfaceEnabled: settings.water,
+        airSwapEnabled: settings.air,
+      },
+    });
+    const lines = diagnosticSummary(diagnose(signalsFromL02(stats)));
+    renderLab(labHost, presentBatch(stats, {
+      eclipseRate: stats.eclipseRate,
+      triangulationRate: stats.triangulationRate,
+      majorSeenRate: stats.majorSeenRate,
+      majorCongestion: stats.majorCongestion,
+    }));
+    addNote("stats", "BATCH", `eclipse ${percent(stats.eclipseRate)} triangulation ${percent(stats.triangulationRate)} majors ${percent(stats.majorSeenRate)} field ${stats.majorCongestion.toFixed(2)}`);
+    for (const line of lines) addNote("stats", "DIAG", line);
+    setWorkspace("lab");
+    status.textContent = "";
+    workspaceStatus.textContent = "";
+    return;
+  }
   if (layer !== "L02") {
     addNote("system", "BATCH", "Stats lab runs on Z02 / L02.");
     return;
@@ -268,6 +301,25 @@ function executeBatch(settings: LabSettings): void {
 }
 
 function executeCompare(settings: Pick<LabSettings, "runs" | "seedStart" | "turns">): void {
+  if (layer === "L03") {
+    const compared = compareL03({ runs: settings.runs, seedStart: settings.seedStart, turnCount: settings.turns });
+    const view = presentCompare(compared.rows);
+    compared.rows.forEach((row, index) => {
+      view.compare[index]?.cells.push(
+        { id: "eclipseRate", label: "Eclipse", value: percent(row.eclipseRate), fraction: row.eclipseRate },
+        { id: "triangulationRate", label: "Triangulation", value: percent(row.triangulationRate), fraction: row.triangulationRate },
+        { id: "majorCongestion", label: "Field", value: row.majorCongestion.toFixed(2), fraction: null },
+      );
+    });
+    renderLab(labHost, view);
+    for (const row of compared.rows) {
+      addNote("stats", "COMPARE", `${row.name} eclipse ${percent(row.eclipseRate)} triangulation ${percent(row.triangulationRate)} field ${row.majorCongestion.toFixed(2)}`);
+    }
+    setWorkspace("lab");
+    status.textContent = "";
+    workspaceStatus.textContent = "";
+    return;
+  }
   if (layer !== "L02") {
     addNote("system", "COMPARE", "Stats lab runs on Z02 / L02.");
     return;

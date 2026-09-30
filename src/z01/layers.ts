@@ -11,6 +11,11 @@ export const LAYER_COPY = {
     name: "Collection + Altar + Veil",
     rules: "Collect one table card. Uncollected cards move to altar. Altar overflow goes to Veil. Water resurfaces; Air swaps.",
   },
+  L03: {
+    code: "Z03 / L03",
+    name: "Majors + PD + Eclipse",
+    rules: "Majors route through PD. One major waits a turn. Two check Eclipse. Three across the combined field triangulate. No combat yet.",
+  },
 } as const;
 
 export function roundTableHint(eventType: string): string | null {

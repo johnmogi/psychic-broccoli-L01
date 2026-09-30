@@ -1,15 +1,20 @@
-import type { MinorCard } from "../cards.js";
+import type { MajorCard, MinorCard } from "../cards.js";
+
+export type SnapCard = MinorCard | MajorCard;
 
 export interface BoardSnap {
   status: "running" | "completed";
   completedTurns: number;
   activePlayerIndex: number;
   players: { id: "P1" | "P2"; lineage: MinorCard[]; hand: MinorCard[] }[];
-  deck: MinorCard[];
-  roundTable: (MinorCard | null)[];
+  deck: SnapCard[];
+  roundTable: (SnapCard | null)[];
   pendingCardId: string | null;
   altarMinors: MinorCard[];
-  veil: MinorCard[];
+  altarMajor: MajorCard | null;
+  veil: SnapCard[];
+  pd: MajorCard | null;
+  teamMilestones: number;
 }
 
 interface BoardSource {
@@ -17,11 +22,13 @@ interface BoardSource {
   completedTurns: number;
   activePlayerIndex: number;
   players: { id: "P1" | "P2"; lineage: MinorCard[]; hand: MinorCard[] }[];
-  deck: MinorCard[];
-  roundTable: readonly (MinorCard | null)[];
+  deck: readonly SnapCard[];
+  roundTable: readonly (SnapCard | null)[];
   pendingCardId?: string | null;
-  altar: { minors: MinorCard[] };
-  veil: MinorCard[];
+  altar: { minors: MinorCard[]; major?: MajorCard | null };
+  veil: readonly SnapCard[];
+  pd?: MajorCard | null;
+  teamMilestones?: number;
 }
 
 let recording: BoardSnap[] | null = null;
@@ -50,17 +57,28 @@ export function boardFromState(state: BoardSource): BoardSnap {
     activePlayerIndex: state.activePlayerIndex,
     players: state.players.map((player) => ({
       id: player.id,
-      lineage: player.lineage.map(copyCard),
-      hand: player.hand.map(copyCard),
+      lineage: player.lineage.map(copyMinor),
+      hand: player.hand.map(copyMinor),
     })),
     deck: state.deck.map(copyCard),
     roundTable: state.roundTable.map((card) => (card ? copyCard(card) : null)),
     pendingCardId: state.pendingCardId ?? null,
-    altarMinors: state.altar.minors.map(copyCard),
+    altarMinors: state.altar.minors.map(copyMinor),
+    altarMajor: state.altar.major ? copyMajor(state.altar.major) : null,
     veil: state.veil.map(copyCard),
+    pd: state.pd ? copyMajor(state.pd) : null,
+    teamMilestones: state.teamMilestones ?? 0,
   };
 }
 
-function copyCard(card: MinorCard): MinorCard {
+function copyCard(card: SnapCard): SnapCard {
+  return { ...card };
+}
+
+function copyMinor(card: MinorCard): MinorCard {
+  return { ...card };
+}
+
+function copyMajor(card: MajorCard): MajorCard {
   return { ...card };
 }

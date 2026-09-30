@@ -144,3 +144,15 @@ From the page:
 - type `help`, `run`, `batch`, `compare`, `copy logs`, `copy events`, or `clear` at the `nexus>` prompt
 
 Those commands only call the same actions as the buttons.
+
+## Z03 / L03
+
+Z03 adds the full 24-major catalog, Parallel Dimension, Eclipse, and Triangulation on top of the Z02 loop. It does not add the event die, barriers, combat, health, or royal effects.
+
+`ash
+npm run l03 -- --seed 42 --turns 9
+npm run l03:batch -- --runs 1000 --seed-start 1 --turns 9
+npm run l03:compare -- --runs 1000 --seed-start 1 --turns 9
+`
+
+The default deck is the full catalog. A scripted prefix can arrange specific majors and still keeps the rest of the catalog in the deck. Eclipse is same court and opposite Sun/Moon back. Triangulation fires once when three majors share the Round Table, PD, and altar field. The lock is in [docs/L03_RULES_LOCK.md](docs/L03_RULES_LOCK.md).

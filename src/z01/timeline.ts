@@ -21,7 +21,7 @@ export interface TimelineFrame {
 }
 
 export interface Timeline {
-  layer: "L01" | "L02";
+  layer: "L01" | "L02" | "L03";
   seed: string;
   turnCount: number;
   frames: TimelineFrame[];
@@ -30,7 +30,7 @@ export interface Timeline {
 type LooseEvent = { type: string; [key: string]: unknown };
 
 export function buildTimeline(
-  layer: "L01" | "L02",
+  layer: "L01" | "L02" | "L03",
   seed: string,
   events: readonly { type: string }[],
   frames: readonly BoardSnap[],
@@ -114,6 +114,24 @@ export function explainEvent(event: LooseEvent): string {
       return `${String(event["playerId"])} hand size is ${String(event["size"])}.`;
     case "COMPLETE":
       return `Run completed after ${String(event["completedTurns"])} turns.`;
+    case "TO_PD":
+      return `${label(event["card"])} moved to PD.`;
+    case "PD_SURFACE":
+      return `${label(event["card"])} surfaced from PD to the altar.`;
+    case "ALTAR_MAJOR":
+      return `${label(event["card"])} holds the altar major slot.`;
+    case "MAJOR_TO_VEIL":
+      return `${label(event["card"])} left the altar major slot for the Veil.`;
+    case "ECLIPSE":
+      return `Eclipse: ${label(event["older"])} met ${label(event["newer"])}.`;
+    case "TRIANGULATION":
+      return "Triangulation: three majors converged.";
+    case "JOKER_AWARDED":
+      return `Joker awarded to ${String(event["playerId"])}.`;
+    case "TEAM_MILESTONE":
+      return `Team milestone for ${String(event["playerId"])}.`;
+    case "MAJOR_REVEALED":
+      return `${label(event["card"])} was revealed on the Round Table.`;
     default:
       return `${event.type}.`;
   }
@@ -184,6 +202,24 @@ export function highlightFor(event: LooseEvent): Highlight {
       return { cardIds: [], zones: [`player:${String(event["playerId"])}:hand`], slots: [] };
     case "COMPLETE":
       return { cardIds: [], zones: ["metrics"], slots: [] };
+    case "TO_PD":
+      return { cardIds: [id(event["card"])].filter(Boolean), zones: ["pd", "round-table"], slots: [] };
+    case "PD_SURFACE":
+      return { cardIds: [id(event["card"])].filter(Boolean), zones: ["pd", "altar-major"], slots: [] };
+    case "ALTAR_MAJOR":
+      return { cardIds: [id(event["card"])].filter(Boolean), zones: ["altar-major"], slots: [] };
+    case "MAJOR_TO_VEIL":
+    case "MAJOR_REPLACED":
+      return { cardIds: [id(event["card"]), id(event["older"]), id(event["newer"])].filter(Boolean), zones: ["altar-major", "veil"], slots: [] };
+    case "ECLIPSE":
+      return { cardIds: [id(event["older"]), id(event["newer"])].filter(Boolean), zones: ["altar-major", "veil", "milestone"], slots: [] };
+    case "TRIANGULATION":
+      return { cardIds: [], zones: ["round-table", "pd", "altar-major", "milestone"], slots: [] };
+    case "JOKER_AWARDED":
+    case "TEAM_MILESTONE":
+      return { cardIds: [], zones: ["milestone", `player:${String(event["playerId"])}`], slots: [] };
+    case "MAJOR_REVEALED":
+      return { cardIds: [id(event["card"])].filter(Boolean), zones: ["round-table"], slots: [Number(event["slot"])] };
     default:
       return empty();
   }
@@ -205,7 +241,8 @@ function veilLine(reason: string, card: string): string {
 
 function label(value: unknown): string {
   if (!value || typeof value !== "object") return "a card";
-  const card = value as { rank?: number; element?: string };
+  const card = value as { rank?: number | null; element?: string; arcana?: string; court?: string; back?: string; name?: string };
+  if (card.arcana === "major" && card.name) return card.name;
   if (typeof card.rank !== "number" || typeof card.element !== "string") return "a card";
   return formatCard({ rank: card.rank, element: card.element as Element });
 }

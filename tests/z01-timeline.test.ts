@@ -38,7 +38,10 @@ describe("admin playtest copy", () => {
       roundTable: [null, minor("air", 2), null],
       pendingCardId: null,
       altarMinors: [],
+      altarMajor: null,
       veil: [],
+      pd: null,
+      teamMilestones: 0,
     };
     const view = inspectBoard("L02", board, { cardIds: [], zones: [], slots: [] });
     const table = view.zones.find((zone) => zone.id === "round-table");

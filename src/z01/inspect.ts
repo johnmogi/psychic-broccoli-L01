@@ -1,4 +1,4 @@
-import { formatCard, type MinorCard } from "../cards.js";
+import { formatAnyCard, formatCard, type MajorCard, type MinorCard } from "../cards.js";
 import type { GameState } from "../state.js";
 import type { L02State } from "../l02/state.js";
 import { metricsFromEvents } from "../metrics.js";
@@ -20,6 +20,7 @@ export interface CardFace {
   top: boolean;
   /** Admin label for a slot with no card. "hidden" is reserved for a future player view. */
   blank: "empty" | "hidden" | null;
+  mark?: string;
 }
 
 export interface ZoneModel {
@@ -57,7 +58,7 @@ export interface MetricItem {
 }
 
 export interface Inspection {
-  layer: "L01" | "L02";
+  layer: "L01" | "L02" | "L03";
   seed: string;
   players: PlayerModel[];
   zones: ZoneModel[];
@@ -65,19 +66,21 @@ export interface Inspection {
   console: ConsoleEntry[];
 }
 
-type CardLike = Pick<MinorCard, "id" | "rank" | "element"> & { name?: string };
+type CardLike = (Pick<MinorCard, "id" | "rank" | "element"> | Pick<MajorCard, "id" | "element" | "court" | "back" | "name">) & { name?: string; arcana?: string; rank?: number | null };
 
 export function cardFace(card: CardLike): CardFace {
+  const major = card.arcana === "major" && "court" in card && card.court && "back" in card && card.back;
   return {
     id: card.id,
     cardId: card.id,
     element: card.element,
-    rankLabel: card.rank === 1 ? "A" : String(card.rank),
-    title: card.name ?? formatCard(card),
+    rankLabel: major ? card.court[0]!.toUpperCase() : card.rank === 1 ? "A" : String(card.rank ?? ""),
+    title: card.name ?? (major ? formatAnyCard({ ...card, arcana: "major" }) : formatCard({ rank: card.rank ?? 0, element: card.element as MinorCard["element"] })),
     slot: null,
     highlighted: false,
     top: false,
     blank: null,
+    mark: major ? card.back : undefined,
   };
 }
 
@@ -103,7 +106,7 @@ export function inspectL02(state: L02State): Inspection {
   };
 }
 
-export function inspectBoard(layer: "L01" | "L02", board: BoardSnap, highlight: Highlight): { players: PlayerModel[]; zones: ZoneModel[] } {
+export function inspectBoard(layer: "L01" | "L02" | "L03", board: BoardSnap, highlight: Highlight): { players: PlayerModel[]; zones: ZoneModel[] } {
   const players = board.players.map((player, index) => ({
     id: player.id,
     active: index === board.activePlayerIndex,
@@ -118,10 +121,23 @@ export function inspectBoard(layer: "L01" | "L02", board: BoardSnap, highlight: 
   const zones = [
     mark(slots("round-table", "Round table", board.roundTable, highlight), highlight, "round-table"),
     mark(pile("altar-minors", "Altar minors", board.altarMinors, "oldest first"), highlight, "altar-minors"),
-    mark(pile("altar-major", "Altar major", []), highlight, "altar-major"),
+    mark(pile("altar-major", "Altar major", board.altarMajor ? [board.altarMajor] : []), highlight, "altar-major"),
     mark(pile("veil", "Veil", board.veil, "ordered history, last card is top"), highlight, "veil"),
     mark(pile("deck", "Deck", board.deck), highlight, "deck"),
   ];
+  if (layer === "L03") {
+    zones.splice(1, 0, mark(pile("pd", "Parallel dimension", board.pd ? [board.pd] : [], "one major waits until next turn"), highlight, "pd"));
+    if ((board.teamMilestones ?? 0) > 0) {
+      zones.push({
+        id: "milestone",
+        title: "Joker / milestone",
+        hint: `${board.teamMilestones} team milestone${board.teamMilestones === 1 ? "" : "s"}`,
+        cards: [],
+        highlighted: highlight.zones.includes("milestone"),
+        quiet: false,
+      });
+    }
+  }
   if (layer === "L01") {
     const pending = board.pendingCardId ? [faceById(cardsOn(board), board.pendingCardId)] : [];
     zones.push(mark({ id: "pending", title: "Pending encounter", cards: paint(pending, highlight, null), highlighted: false, quiet: false }, highlight, "pending"));
@@ -130,6 +146,7 @@ export function inspectBoard(layer: "L01" | "L02", board: BoardSnap, highlight: 
 }
 
 function boardOf(state: GameState | L02State): BoardSnap {
+  const extra = state as { pd?: MajorCard | null; teamMilestones?: number };
   return {
     status: state.status,
     completedTurns: state.completedTurns,
@@ -139,7 +156,10 @@ function boardOf(state: GameState | L02State): BoardSnap {
     roundTable: [...state.roundTable],
     pendingCardId: "pendingCardId" in state ? state.pendingCardId : null,
     altarMinors: state.altar.minors,
+    altarMajor: state.altar.major ?? null,
     veil: state.veil,
+    pd: extra.pd ?? null,
+    teamMilestones: extra.teamMilestones ?? 0,
   };
 }
 
@@ -226,7 +246,8 @@ function flatten(value: Record<string, unknown>, prefix: string, items: MetricIt
 function summarize(event: { type: string } & Record<string, unknown>): string {
   const card = (value: unknown) => {
     if (!value || typeof value !== "object") return "";
-    const snap = value as { rank?: number; element?: string };
+    const snap = value as { rank?: number | null; element?: string; arcana?: string; name?: string };
+    if (snap.arcana === "major" && snap.name) return snap.name;
     if (typeof snap.rank !== "number" || typeof snap.element !== "string") return "";
     return formatCard({ rank: snap.rank, element: snap.element as MinorCard["element"] });
   };
@@ -261,6 +282,28 @@ function summarize(event: { type: string } & Record<string, unknown>): string {
       return `${String(event.playerId)} hand ${String(event.size)}`;
     case "COMPLETE":
       return `complete ${String(event.completedTurns)}`;
+    case "MAJOR_REVEALED":
+      return `${card(event.card)} revealed`;
+    case "TO_PD":
+      return `${card(event.card)} moved to PD`;
+    case "PD_SURFACE":
+      return `${card(event.card)} surfaced to altar`;
+    case "ALTAR_MAJOR":
+      return `${card(event.card)} holds the altar`;
+    case "MAJOR_TO_VEIL":
+      return `${card(event.card)} to Veil (${String(event.reason)})`;
+    case "MAJOR_REPLACED":
+      return `${card(event.newer)} replaced ${card(event.older)}`;
+    case "ECLIPSE":
+      return `Eclipse: ${card(event.older)} met ${card(event.newer)}`;
+    case "TRIANGULATION":
+      return "Triangulation: three majors converged";
+    case "JOKER_AWARDED":
+      return `Joker awarded to ${String(event.playerId)}`;
+    case "TEAM_MILESTONE":
+      return `Team milestone for ${String(event.playerId)}`;
+    case "MAJOR_FIELD":
+      return `major field ${String(event.count)}`;
     default: {
       const { type, ...rest } = event;
       return `${type} ${JSON.stringify(rest)}`;

@@ -6,6 +6,7 @@ import { captureFrames } from "../../src/z01/capture.js";
 import { consoleFrom, inspectBoard, metricItems, type ConsoleEntry, type MetricItem } from "../../src/z01/inspect.js";
 import { requestFromValues, settingSpecs } from "../../src/z01/settings.js";
 import { buildTimeline, moveTimeline, type Timeline } from "../../src/z01/timeline.js";
+import { DEFAULT_LAYER, LAYER_COPY, roundTableHint } from "../../src/z01/layers.js";
 import { EventConsole } from "./views/console.js";
 import { MetricsPanel } from "./views/metrics.js";
 import { PlayerPanel } from "./views/player.js";
@@ -16,7 +17,7 @@ import { ZoneView } from "./views/zone.js";
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("Missing #app");
 
-let layer: "L01" | "L02" = "L02";
+let layer: "L01" | "L02" = DEFAULT_LAYER;
 
 const shell = document.createElement("div");
 shell.className = "shell";
@@ -24,6 +25,11 @@ const rail = document.createElement("aside");
 rail.className = "rail";
 const stage = document.createElement("main");
 stage.className = "stage";
+const timelineHost = document.createElement("div");
+timelineHost.className = "timeline-sticky";
+const boardHost = document.createElement("div");
+boardHost.className = "board-scroll";
+stage.append(timelineHost, boardHost);
 const dock = document.createElement("footer");
 dock.className = "dock";
 shell.append(rail, stage, dock);
@@ -32,10 +38,16 @@ app.append(shell);
 const layerSwitch = document.createElement("div");
 layerSwitch.className = "layer-switch";
 layerSwitch.dataset.component = "LayerSwitch";
-for (const name of ["L01", "L02"] as const) {
+for (const name of ["L02", "L01"] as const) {
   const button = document.createElement("button");
   button.type = "button";
-  button.textContent = name;
+  const code = document.createElement("span");
+  code.className = "layer-code";
+  code.textContent = LAYER_COPY[name].code;
+  const title = document.createElement("span");
+  title.className = "layer-name";
+  title.textContent = LAYER_COPY[name].name;
+  button.append(code, title);
   button.dataset.layer = name;
   button.addEventListener("click", () => {
     layer = name;
@@ -44,6 +56,10 @@ for (const name of ["L01", "L02"] as const) {
   layerSwitch.append(button);
 }
 rail.append(layerSwitch);
+
+const rules = document.createElement("p");
+rules.className = "layer-rules";
+rail.append(rules);
 
 const settingsHost = document.createElement("div");
 rail.append(settingsHost);
@@ -69,6 +85,7 @@ run({
 });
 
 function mountSettings(): void {
+  rules.textContent = LAYER_COPY[layer].rules;
   settingsHost.replaceChildren(SettingsPanel(settingSpecs(layer), run));
   for (const button of layerSwitch.querySelectorAll("button")) {
     button.dataset.selected = button.dataset.layer === layer ? "true" : "false";
@@ -120,6 +137,9 @@ function renderFrame(): void {
   const frame = timeline.frames[index];
   if (!frame) return;
   const view = inspectBoard(timeline.layer, frame.board, frame.highlight);
+  const hint = roundTableHint(frame.eventType);
+  const table = view.zones.find((zone) => zone.id === "round-table");
+  if (table && hint) table.hint = hint;
   const players = document.createElement("div");
   players.className = "players";
   for (const player of view.players) players.append(PlayerPanel(player));
@@ -132,23 +152,26 @@ function renderFrame(): void {
   board.className = "board";
   const banner = document.createElement("p");
   banner.className = "banner";
-  banner.textContent = `${timeline.layer} · seed ${timeline.seed}`;
-  board.append(
-    TimelineBar(frame, timeline.frames.length, (action) => {
-      if (!timeline) return;
-      index = moveTimeline(index, timeline.frames.length, action);
-      renderFrame();
-    }),
-    banner,
-    players,
-    zones,
-    MetricsPanel(metrics, frame.highlight.zones.includes("metrics")),
-  );
-  stage.replaceChildren(board);
+  banner.textContent = `${LAYER_COPY[timeline.layer].code} · seed ${timeline.seed}`;
+  const kept = boardHost.scrollTop;
+  timelineHost.replaceChildren(TimelineBar(frame, timeline.frames.length, (action) => {
+    if (!timeline) return;
+    index = moveTimeline(index, timeline.frames.length, action);
+    renderFrame();
+  }));
+  board.append(banner, players, zones, MetricsPanel(metrics, frame.highlight.zones.includes("metrics")));
+  boardHost.replaceChildren(board);
+  boardHost.scrollTop = kept;
   dock.replaceChildren(EventConsole(entries, index, (next) => {
     index = next;
     renderFrame();
   }));
-  const row = dock.querySelector<HTMLElement>("[data-selected='true']");
-  row?.scrollIntoView({ block: "nearest" });
+  const list = dock.querySelector<HTMLElement>(".scrollback");
+  const row = list?.querySelector<HTMLElement>("[data-selected='true']");
+  if (list && row) {
+    const listRect = list.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    if (rowRect.top < listRect.top) list.scrollTop -= listRect.top - rowRect.top;
+    else if (rowRect.bottom > listRect.bottom) list.scrollTop += rowRect.bottom - listRect.bottom;
+  }
 }

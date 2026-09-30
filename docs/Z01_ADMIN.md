@@ -12,4 +12,4 @@ Timeline replay steps through one engine snapshot per event. Start shows the set
 npm run z01
 ```
 
-Open the printed local URL. The default view is an L02 run with seed `42`.
+Open the printed local URL. The shell opens on Z02 / L02, the collection, altar, and veil loop. Z01 / L01 stays available as lineage grammar inspection. The timeline controls stay pinned above the board.

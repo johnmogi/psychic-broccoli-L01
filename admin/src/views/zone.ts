@@ -4,6 +4,7 @@ import { CardView } from "./card.js";
 export function ZoneView(zone: ZoneModel): HTMLElement {
   const el = document.createElement("section");
   el.className = zone.highlighted ? "zone is-highlight" : "zone";
+  if (zone.quiet) el.classList.add("zone-quiet");
   el.dataset.component = "ZoneView";
   el.dataset.zone = zone.id;
   if (zone.highlighted) el.dataset.highlight = "true";

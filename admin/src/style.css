@@ -50,8 +50,20 @@ button, input, select {
 }
 
 .stage {
-  padding: 1.25rem 1.25rem 0.5rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  padding: 0;
+}
+
+.timeline-sticky {
+  padding: 0.75rem 1.25rem 0;
+  background: #14110d;
+}
+
+.board-scroll {
   overflow: auto;
+  padding: 0.35rem 1.25rem 1rem;
 }
 
 .dock {
@@ -61,12 +73,40 @@ button, input, select {
 }
 
 .layer-switch {
-  display: flex;
+  display: grid;
   gap: 0.4rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.7rem;
 }
 
-.layer-switch button,
+.layer-switch button {
+  display: grid;
+  gap: 0.1rem;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.layer-code {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.layer-name {
+  font-family: "Fraunces", serif;
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.layer-rules {
+  margin: 0 0 0.9rem;
+  color: var(--muted);
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
 .settings button {
   border: 1px solid var(--line);
   background: transparent;
@@ -78,7 +118,19 @@ button, input, select {
   cursor: pointer;
 }
 
-.layer-switch button[data-selected="true"],
+.layer-switch button {
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+}
+
+.layer-switch button[data-selected="true"] {
+  background: var(--ember);
+  color: #1a100b;
+  border-color: transparent;
+}
+
 .settings button {
   background: var(--ember);
   color: #1a100b;
@@ -120,7 +172,51 @@ h2, h3 {
   color: var(--muted);
 }
 
-.what-changed strong, .lineage-readout strong { color: var(--ink); font-weight: 500; }
+.lineage-readout {
+  display: grid;
+  gap: 0.1rem;
+  margin: 0.35rem 0 0.55rem;
+}
+
+.lineage-current {
+  color: var(--ink);
+  font-family: "Fraunces", serif;
+  font-size: 1.55rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.lineage-path { color: var(--muted); }
+
+.zone-quiet {
+  opacity: 0.72;
+}
+
+.zone-quiet .card {
+  width: 2.35rem;
+  min-height: 3rem;
+  padding: 0.25rem;
+}
+
+.zone-quiet .card-rank { font-size: 0.85rem; }
+
+.card.is-blank {
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  box-shadow: none;
+  width: 3.1rem;
+  min-height: 4.2rem;
+}
+
+.card.is-blank .card-rank {
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+.what-changed strong { color: var(--ink); font-weight: 500; }
 .what-changed span { display: block; color: var(--ember); margin-bottom: 0.15rem; }
 
 .banner {
@@ -192,8 +288,6 @@ h2, h3 {
 .card.is-highlight, .zone.is-highlight, .player.is-highlight, .metrics.is-highlight {
   outline: 1px solid var(--ember);
 }
-.scrollback li[data-selected="true"] { background: rgba(224, 122, 61, 0.16); cursor: pointer; }
-.scrollback li { cursor: pointer; }
 
 .card-rank {
   font-size: 1.15rem;
@@ -274,11 +368,17 @@ h2, h3 {
 
 .scrollback li {
   display: grid;
-  grid-template-columns: 2.4rem 9.5rem minmax(0, 1fr);
-  gap: 0.6rem;
+  grid-template-columns: 3rem 8.5rem minmax(0, 1fr);
+  column-gap: 1rem;
+  align-items: baseline;
+  padding: 0.18rem 0.35rem;
   font-size: 0.75rem;
-  line-height: 1.45;
+  line-height: 1.55;
+  cursor: pointer;
 }
+
+.scrollback li:hover { background: rgba(183, 227, 161, 0.08); }
+.scrollback li[data-selected="true"] { background: rgba(224, 122, 61, 0.2); }
 
 .term-index, .term-kind { color: #6f8f64; }
 .terminal-prompt {

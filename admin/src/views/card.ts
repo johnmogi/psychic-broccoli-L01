@@ -13,7 +13,13 @@ export function CardView(card: CardFace): HTMLElement {
 
   const rank = document.createElement("span");
   rank.className = "card-rank";
-  rank.textContent = card.rankLabel;
+  rank.textContent = card.blank ?? card.rankLabel;
+
+  if (card.blank) {
+    el.classList.add("is-blank");
+    el.append(rank);
+    return el;
+  }
 
   const element = document.createElement("span");
   element.className = "card-element";

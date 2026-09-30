@@ -18,6 +18,8 @@ export interface CardFace {
   slot: number | null;
   highlighted: boolean;
   top: boolean;
+  /** Admin label for a slot with no card. "hidden" is reserved for a future player view. */
+  blank: "empty" | "hidden" | null;
 }
 
 export interface ZoneModel {
@@ -26,6 +28,7 @@ export interface ZoneModel {
   hint?: string;
   cards: CardFace[];
   highlighted: boolean;
+  quiet: boolean;
 }
 
 export interface PlayerModel {
@@ -73,6 +76,7 @@ export function cardFace(card: CardLike): CardFace {
     slot: null,
     highlighted: false,
     top: false,
+    blank: null,
   };
 }
 
@@ -119,7 +123,7 @@ export function inspectBoard(layer: "L01" | "L02", board: BoardSnap, highlight: 
   ];
   if (layer === "L01") {
     const pending = board.pendingCardId ? [faceById(cardsOn(board), board.pendingCardId)] : [];
-    zones.push(mark({ id: "pending", title: "Pending encounter", cards: paint(pending, highlight, null), highlighted: false }, highlight, "pending"));
+    zones.push(mark({ id: "pending", title: "Pending encounter", cards: paint(pending, highlight, null), highlighted: false, quiet: false }, highlight, "pending"));
   }
   return { players, zones };
 }
@@ -157,7 +161,7 @@ export function consoleFrom(events: readonly { type: string }[]): ConsoleEntry[]
 
 function pile(id: string, title: string, cards: readonly CardLike[], hint?: string): ZoneModel {
   const faces = cards.map((card, index) => ({ ...cardFace(card), top: id === "lineage" && index === cards.length - 1 }));
-  return { id, title, hint, cards: faces, highlighted: false };
+  return { id, title, hint, cards: faces, highlighted: false, quiet: id === "lineage" };
 }
 
 function slots(id: string, title: string, cards: readonly (CardLike | null)[], highlight: Highlight): ZoneModel {
@@ -165,10 +169,11 @@ function slots(id: string, title: string, cards: readonly (CardLike | null)[], h
     id,
     title,
     highlighted: false,
+    quiet: false,
     cards: cards.map((card, index) => {
       const face = card
         ? { ...cardFace(card), id: `${card.id}@${index}`, slot: index }
-        : { id: `${id}-empty-${index}`, cardId: "", element: "unknown", rankLabel: "·", title: "empty slot", slot: index, highlighted: false, top: false };
+        : { id: `${id}-empty-${index}`, cardId: "", element: "", rankLabel: "", title: "empty", slot: index, highlighted: false, top: false, blank: "empty" as const };
       face.highlighted = face.highlighted || highlight.slots.includes(index) || (face.cardId !== "" && highlight.cardIds.includes(face.cardId));
       return face;
     }),
@@ -180,6 +185,7 @@ function mark(zone: ZoneModel, highlight: Highlight, zoneId: string): ZoneModel 
   return {
     ...zone,
     highlighted: zoneHit,
+    quiet: zone.quiet,
     cards: paint(zone.cards, highlight, zone.id === "round-table" ? null : zone.id),
   };
 }
@@ -204,7 +210,7 @@ function cardsOn(board: BoardSnap): CardLike[] {
 function faceById(cards: readonly CardLike[], id: string): CardFace {
   const card = cards.find((item) => item.id === id);
   if (card) return cardFace(card);
-  return { id, cardId: id, element: "unknown", rankLabel: "·", title: id, slot: null, highlighted: false, top: false };
+  return { id, cardId: id, element: "", rankLabel: "", title: id, slot: null, highlighted: false, top: false, blank: null };
 }
 
 function flatten(value: Record<string, unknown>, prefix: string, items: MetricItem[]): void {

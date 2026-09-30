@@ -19,13 +19,19 @@ export function PlayerPanel(player: PlayerModel): HTMLElement {
     head.append(mark);
   }
 
-  const readout = document.createElement("p");
+  const readout = document.createElement("div");
   readout.className = "lineage-readout";
+  const currentLabel = document.createElement("span");
+  currentLabel.textContent = "Current";
   const current = document.createElement("strong");
+  current.className = "lineage-current";
   current.textContent = player.currentLineage;
+  const pathLabel = document.createElement("span");
+  pathLabel.textContent = "Path";
   const path = document.createElement("span");
+  path.className = "lineage-path";
   path.textContent = player.lineagePath;
-  readout.append("Current: ", current, document.createElement("br"), "Path: ", path);
+  readout.append(currentLabel, current, pathLabel, path);
 
   const zones = document.createElement("div");
   zones.className = "player-zones";

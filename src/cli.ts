@@ -6,9 +6,16 @@ import { formatBatch, formatMetrics, metricsFromEvents } from "./metrics.js";
 import { runBatch } from "./compare.js";
 import { seedList } from "./rng.js";
 import { GOLDEN_SEED, playGoldenTutorial } from "./tutorial.js";
+import { compareL02, formatL02Compare, runL02Batch } from "./l02/compare.js";
+import { resolveL02Config, type L02Config } from "./l02/config.js";
+import { playL02 } from "./l02/engine.js";
+import { formatL02Log } from "./l02/events.js";
+import { formatL02Batch, formatL02Metrics, l02MetricsFromEvents } from "./l02/metrics.js";
 
 export function main(argv: readonly string[]): string {
-  const { command, options } = parseArgs(argv);
+  const parsed = parseArgs(argv);
+  if (parsed.command === "l02") return runL02Command(parsed.positionals.slice(1), parsed.options);
+  const { command, options } = parsed;
   if (command === "batch") return formatBatch(runBatch(batchRequest(options)));
   if (command === "compare") return formatCompare(compareConfigs(compareRequest(options)).rows);
   if (command === "tune") return formatTune(tuneConfigs(tuneRequest(options)).rows);
@@ -18,6 +25,37 @@ export function main(argv: readonly string[]): string {
     return `${formatLog(state.events)}\n\n${formatMetrics(metricsFromEvents(state.events))}`;
   }
   throw new Error(`Unknown command ${command}. Use run, batch, compare, or tune.`);
+}
+
+function runL02Command(rest: readonly string[], options: Record<string, string>): string {
+  const sub = rest[0] ?? "run";
+  const config = l02Options(options);
+  if (sub === "batch") {
+    return formatL02Batch(runL02Batch({
+      seeds: seedList(integer(required(options, "seed-start"), "seed-start"), integer(required(options, "runs"), "runs")),
+      config,
+    }));
+  }
+  if (sub === "compare") {
+    return formatL02Compare(compareL02({
+      runs: integer(required(options, "runs"), "runs"),
+      seedStart: integer(required(options, "seed-start"), "seed-start"),
+      turnCount: config.turnCount ?? resolveL02Config().turnCount,
+    }).rows);
+  }
+  if (sub === "run") {
+    const state = playL02(required(options, "seed"), config);
+    return `${formatL02Log(state.events)}\n\n${formatL02Metrics(l02MetricsFromEvents(state.events))}`;
+  }
+  throw new Error("Unknown l02 command. Use run, batch, or compare.");
+}
+
+function l02Options(options: Record<string, string>): Partial<L02Config> {
+  const partial: Partial<L02Config> = {};
+  if (options["turns"]) partial.turnCount = integer(options["turns"], "turns");
+  if (options["alignment"]) partial.alignmentRule = alignment(options["alignment"]);
+  if (options["max-jump"]) partial.maxJump = jump(options["max-jump"]);
+  return partial;
 }
 
 function batchRequest(options: Record<string, string>) {
@@ -62,7 +100,7 @@ function sharedConfig(options: Record<string, string>): L01Config {
   });
 }
 
-function parseArgs(argv: readonly string[]): { command: string; options: Record<string, string> } {
+function parseArgs(argv: readonly string[]): { command: string; positionals: string[]; options: Record<string, string> } {
   const options: Record<string, string> = {};
   const positionals: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
@@ -75,7 +113,7 @@ function parseArgs(argv: readonly string[]): { command: string; options: Record<
       index += 1;
     } else positionals.push(token);
   }
-  return { command: positionals[0] ?? "run", options };
+  return { command: positionals[0] ?? "run", positionals, options };
 }
 
 function required(options: Record<string, string>, key: string): string {

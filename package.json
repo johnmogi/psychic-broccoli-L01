@@ -8,6 +8,9 @@
     "l01:batch": "tsx src/cli.ts batch",
     "l01:compare": "tsx src/cli.ts compare",
     "l01:tune": "tsx src/cli.ts tune",
+    "l02": "tsx src/cli.ts l02",
+    "l02:batch": "tsx src/cli.ts l02 batch",
+    "l02:compare": "tsx src/cli.ts l02 compare",
     "test": "vitest run",
     "check": "tsc --noEmit && vitest run"
   },

@@ -104,6 +104,23 @@ This shuffled result is the balance lab. It is not a target and it is not the le
 
 See [docs/L01_RULES_LOCK.md](docs/L01_RULES_LOCK.md) and [docs/BASELINE.md](docs/BASELINE.md).
 
+## L02
+
+L02 is the first real playable layer. Later games start from here: evolve a lineage, collect cards into hand, clear the round table onto the altar, and spend Water or Air to touch the veil.
+
+L01 is unchanged. L02 is a separate CLI mode.
+
+```bash
+npm run l02 -- --seed 42
+npm run l02 -- --seed 42 --turns 6
+npm run l02:batch -- --runs 1000 --seed-start 1 --turns 6
+npm run l02:compare -- --runs 1000 --seed-start 1 --turns 6
+```
+
+Defaults: 6 turns, same color, jump 2, two starting cards, unlimited hand, altar capacity 3, oldest overflow, Water resurface and Air swap on, one elemental effect per turn.
+
+Each turn fills empty slots, collects the leftmost table card, evolves from the hand, optionally spends one veil effect, then sends every uncollected table card to the altar. The full lock is in [docs/L02_RULES_LOCK.md](docs/L02_RULES_LOCK.md).
+
 ## Development boundaries
 
-L01 is frozen as the card-state grammar. L02 is a separate step after this lockdown. Future mechanics, including Eclipse, dice, barriers, combat, health, and majors in play, must not be backfilled into L01 unless they are deliberately versioned.
+L01 is frozen as the card-state grammar. L02 is the layer later play starts from. Eclipse, dice, barriers, combat, health, and majors in play are not part of L02, and they must not be backfilled into L01 unless they are deliberately versioned.
